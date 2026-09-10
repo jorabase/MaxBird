@@ -43,29 +43,29 @@ object UserSessionManager {
      */
     var currentUserProfile by mutableStateOf(
         UserProfile(
-            id = "usr_101",
-            name = "MD. FAHIM MIA",
-            phone = "01774000000",
-            birthDate = "2006-05-15",
-            gender = "পুরুষ",
+            id = "",
+            name = "",
+            phone = "",
+            birthDate = "",
+            gender = "",
             avatarUrl = "",
-            studentClass = "এইচএসসি",
-            group = "মানবিক",
-            examBatch = "২০২৭",
-            classShift = "দিবা (Day)",
-            sscBoard = "ঢাকা",
+            studentClass = "",
+            group = "",
+            examBatch = "",
+            classShift = "",
+            sscBoard = "",
             sscRoll = "",
-            hscBoard = "ঢাকা",
+            hscBoard = "",
             hscRoll = "",
             boardRegNumber = "",
-            institutionDivision = "ঢাকা",
-            institutionDistrict = "ঢাকা",
-            institutionName = "নটর ডেম কলেজ",
-            educationMedium = "বাংলা মাধ্যম",
+            institutionDivision = "",
+            institutionDistrict = "",
+            institutionName = "",
+            educationMedium = "",
             guardianName = "",
             guardianPhone = "",
             otherTutoringSources = emptyList(),
-            isLoggedIn = true
+            isLoggedIn = false
         )
     )
 

@@ -5,11 +5,13 @@ import com.example.common.data.local.CachedAcademicConfigEntity
 import com.example.common.data.local.UserAcademicProfileDao
 import com.example.common.data.local.UserAcademicProfileEntity
 import com.example.common.data.remote.AcademicNetworkDataSource
-import com.example.common.model.AcademicConfigResponse
+import com.example.common.model.ApiResponse
+import com.example.common.model.ClassItem
 import com.example.common.model.AppGlobalEvent
 import com.example.common.model.UpdateSyllabusRequest
 import com.example.common.network.UserSessionManager
 import com.squareup.moshi.Moshi
+import com.squareup.moshi.Types
 import com.squareup.moshi.kotlin.reflect.KotlinJsonAdapterFactory
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
@@ -22,7 +24,7 @@ import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 
 /**
- * Repository orchestrating Dynamic Remote API calls (GET /api/v1/academic/config),
+ * Repository orchestrating Dynamic Remote API calls (GET /api/v2/academic/classes-config),
  * Room Database Local Persistence (Offline-First), and the Cache Invalidation Pipeline
  * with AppGlobalEvent broadcasting.
  */
@@ -39,17 +41,19 @@ class AcademicRepository(
     private val moshi: Moshi = Moshi.Builder()
         .addLast(KotlinJsonAdapterFactory())
         .build()
-    private val configAdapter = moshi.adapter(AcademicConfigResponse::class.java)
+    
+    private val configListType = Types.newParameterizedType(List::class.java, ClassItem::class.java)
+    private val configAdapter = moshi.adapter<List<ClassItem>>(configListType)
 
     /**
-     * Fetches academic config dynamically from GET /api/v1/academic/config,
+     * Fetches academic config dynamically from GET /api/v2/academic/classes-config,
      * caches it in Room for offline access, and serves cached config if offline.
      */
-    suspend fun getAcademicConfig(): Result<AcademicConfigResponse> = withContext(Dispatchers.IO) {
+    suspend fun getAcademicConfig(): Result<List<ClassItem>> = withContext(Dispatchers.IO) {
         try {
             // Check local Room cache first
             val cachedEntity = configDao.getConfig()
-            var cachedConfig: AcademicConfigResponse? = null
+            var cachedConfig: List<ClassItem>? = null
             if (cachedEntity != null && cachedEntity.configJson.isNotBlank()) {
                 try {
                     cachedConfig = configAdapter.fromJson(cachedEntity.configJson)
@@ -59,16 +63,25 @@ class AcademicRepository(
             // Attempt dynamic remote network fetch
             try {
                 val remoteResponse = networkDataSource.fetchAcademicConfig()
-                // Update Room Cache for offline persistence
-                val json = configAdapter.toJson(remoteResponse)
-                configDao.insertOrUpdateConfig(
-                    CachedAcademicConfigEntity(
-                        id = "global_academic_config",
-                        configJson = json,
-                        lastUpdated = System.currentTimeMillis()
+                if (remoteResponse.isSuccessful) {
+                    val apiData = remoteResponse.body()?.data ?: emptyList()
+                    // Update Room Cache for offline persistence
+                    val json = configAdapter.toJson(apiData)
+                    configDao.insertOrUpdateConfig(
+                        CachedAcademicConfigEntity(
+                            id = "global_academic_config",
+                            configJson = json,
+                            lastUpdated = System.currentTimeMillis()
+                        )
                     )
-                )
-                Result.success(remoteResponse)
+                    Result.success(apiData)
+                } else {
+                    if (cachedConfig != null) {
+                        Result.success(cachedConfig)
+                    } else {
+                        Result.failure(Exception("Network error: ${remoteResponse.code()}"))
+                    }
+                }
             } catch (networkError: Exception) {
                 if (cachedConfig != null) {
                     Result.success(cachedConfig)
@@ -84,45 +97,46 @@ class AcademicRepository(
     /**
      * Observes cached academic configuration from Room DB as a reactive Flow
      */
-    fun observeAcademicConfig(): Flow<AcademicConfigResponse?> {
+    fun observeAcademicConfig(): Flow<List<ClassItem>> {
         return configDao.observeConfig().map { entity ->
             entity?.configJson?.let { json ->
                 try {
-                    configAdapter.fromJson(json)
+                    configAdapter.fromJson(json) ?: emptyList()
                 } catch (_: Exception) {
-                    null
+                    emptyList()
                 }
-            }
+            } ?: emptyList()
         }
     }
 
     /**
-     * Updates user's syllabus choice via PATCH /api/v1/user/academic-profile,
+     * Updates user's syllabus choice via PATCH /api/v2/user/academic-profile,
      * writes to Room DB, updates global session, and broadcasts AppGlobalEvent.SyllabusChanged.
      */
     suspend fun updateSyllabus(
         userId: String = "usr_101",
         classId: String,
+        classTitle: String,
         batchYear: String?,
-        groupCode: String?
+        groupCode: String?,
+        groupTitle: String?
     ): Result<UserAcademicProfileEntity> = withContext(Dispatchers.IO) {
         try {
             val request = UpdateSyllabusRequest(
                 classId = classId,
-                batchYear = batchYear,
+                batch = batchYear,
                 groupCode = groupCode
             )
-            val response = networkDataSource.updateAcademicProfile(userId, request)
+            val response = networkDataSource.updateAcademicProfile(request)
             
-            if (response.status == "success" && response.data != null) {
-                val activeData = response.data.activeSyllabus
+            if (response.isSuccessful) {
                 val entity = UserAcademicProfileEntity(
-                    userId = response.data.userId,
-                    classId = activeData.classId,
-                    classTitleBn = activeData.classTitle,
-                    batchYear = activeData.batchYear,
-                    groupCode = activeData.groupCode,
-                    groupTitleBn = activeData.groupTitle,
+                    userId = userId,
+                    classId = classId,
+                    classTitleBn = classTitle,
+                    batchYear = batchYear,
+                    groupCode = groupCode,
+                    groupTitleBn = groupTitle,
                     lastUpdated = System.currentTimeMillis()
                 )
 
@@ -131,9 +145,9 @@ class AcademicRepository(
 
                 // 2. Synchronize Session Manager for seamless UI consistency
                 UserSessionManager.updateClassAndBatch(
-                    newClass = entity.classTitleBn,
-                    newGroup = entity.groupTitleBn ?: "General",
-                    newBatch = entity.batchYear ?: "2026"
+                    newClass = classTitle,
+                    newGroup = groupTitle ?: "",
+                    newBatch = batchYear ?: ""
                 )
 
                 // 3. Cache Invalidation Pipeline: Broadcast global event to trigger cache clearance in ViewModels
@@ -151,7 +165,7 @@ class AcademicRepository(
                     com.example.common.network.AppGlobalEventBus.emit(
                         com.example.common.model.AppEvent.SyllabusUpdated(
                             classId = entity.classId,
-                            batch = entity.batchYear ?: "2027",
+                            batch = entity.batchYear ?: "",
                             group = entity.groupCode
                         )
                     )
@@ -159,7 +173,7 @@ class AcademicRepository(
 
                 Result.success(entity)
             } else {
-                Result.failure(Exception(response.message.ifBlank { "Failed to update syllabus" }))
+                Result.failure(Exception("Failed to update syllabus"))
             }
         } catch (e: Exception) {
             Result.failure(e)
@@ -199,3 +213,4 @@ class AcademicRepository(
         fun getSharedInstance(): AcademicRepository? = INSTANCE
     }
 }
+

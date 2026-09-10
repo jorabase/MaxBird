@@ -183,7 +183,7 @@ class GraphQLCourseService(
             .addHeader("Content-Type", "application/json")
             .addHeader("X-User-Timezone", "Asia/Dhaka")
             .addHeader("Build-Version", "(605) 6.0.5")
-            .addHeader("User-Agent", "Shikho/(605) 6.0.5 (Android 12; V2029; vivo 2027; en; WIFI; )")
+            .addHeader("User-Agent", NetworkUtils.getUserAgent())
 
         // Include Bearer token if logged in
         val token = UserSessionManager.getSavedAccessToken() ?: authRepository.accessToken

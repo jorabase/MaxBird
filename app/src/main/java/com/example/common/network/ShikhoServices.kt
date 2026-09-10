@@ -40,7 +40,7 @@ object ShikhoServices {
             .addHeader("Content-Type", "application/json")
             .addHeader("X-User-Timezone", "Asia/Dhaka")
             .addHeader("Build-Version", "(605) 6.0.5")
-            .addHeader("User-Agent", "Shikho/(605) 6.0.5 (Android 12; V2029; vivo 2027; en; WIFI; )")
+            .addHeader("User-Agent", NetworkUtils.getUserAgent())
 
         if (token.isNotBlank()) {
             builder.addHeader("Authorization", "Bearer $token")

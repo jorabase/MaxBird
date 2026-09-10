@@ -19,10 +19,10 @@ object AnalyticsTracker {
      * Dispatched when user enters the Courses catalog screen
      */
     fun trackSeeCoursePage(
-        deviceModel: String = "Vivo V2029",
+        deviceModel: String = android.os.Build.MODEL,
         userRole: String = "FullApTrial",
         trialEndDate: String = "2025-12-11",
-        batchId: String = "HSC 2027",
+        batchId: String = "HSC",
         className: String = "C11",
         group: String = "Humanities"
     ) {

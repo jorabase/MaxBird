@@ -4,8 +4,7 @@ import androidx.lifecycle.ViewModel
 import androidx.lifecycle.ViewModelProvider
 import androidx.lifecycle.viewModelScope
 import com.example.common.data.local.UserAcademicProfileEntity
-import com.example.common.model.AcademicClass
-import com.example.common.model.AcademicConfigResponse
+import com.example.common.model.ClassItem
 import com.example.common.model.AcademicGroup
 import com.example.common.repository.AcademicRepository
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -25,7 +24,7 @@ enum class SyllabusScreenMode {
 /**
  * UI State for Syllabus Selection and Summary screens
  * Server-Driven State Machine:
- * - selectedClass: AcademicClass?
+ * - selectedClass: ClassItem?
  * - selectedBatch: String?
  * - selectedGroup: AcademicGroup?
  * - isSubmitEnabled: Boolean (dynamic validation based on selected class lists)
@@ -35,9 +34,9 @@ data class SyllabusUiState(
     val isSubmitting: Boolean = false,
     val errorMessage: String? = null,
     val successMessage: String? = null,
-    val config: AcademicConfigResponse? = null,
+    val config: List<ClassItem>? = null,
     val savedProfile: UserAcademicProfileEntity? = null,
-    val selectedClass: AcademicClass? = null,
+    val selectedClass: ClassItem? = null,
     val selectedBatch: String? = null,
     val selectedGroup: AcademicGroup? = null,
     val screenMode: SyllabusScreenMode = SyllabusScreenMode.SUMMARY
@@ -93,8 +92,8 @@ class SyllabusViewModel(
                     }
                     if (existingProfile != null) {
                         applyProfileToSelection(existingProfile, config)
-                    } else if (config.classes.isNotEmpty()) {
-                        val initialClass = config.classes.first()
+                    } else if (config.isNotEmpty()) {
+                        val initialClass = config.first()
                         onClassSelected(initialClass)
                     }
                 },
@@ -122,7 +121,7 @@ class SyllabusViewModel(
      * Handles academic class selection.
      * Dynamically sets or resets batches and groups based purely on the class object's internal lists.
      */
-    fun onClassSelected(classItem: AcademicClass) {
+    fun onClassSelected(classItem: ClassItem) {
         _uiState.update { state ->
             val nextBatch = if (classItem.batches.isNotEmpty()) {
                 if (state.selectedBatch != null && classItem.batches.contains(state.selectedBatch)) {
@@ -153,7 +152,7 @@ class SyllabusViewModel(
         }
     }
 
-    fun onClassSelect(classItem: AcademicClass) = onClassSelected(classItem)
+    fun onClassSelect(classItem: ClassItem) = onClassSelected(classItem)
 
     fun onBatchSelected(batch: String) {
         _uiState.update { it.copy(selectedBatch = batch, errorMessage = null) }
@@ -186,11 +185,11 @@ class SyllabusViewModel(
      * - selectedBatch = userProfile.batchYear (if matching batch exists in selectedClass.batches)
      * - selectedGroup = selectedClass.groups.find { it.code == userProfile.groupCode }
      */
-    private fun applyProfileToSelection(profile: UserAcademicProfileEntity, config: AcademicConfigResponse) {
-        val matchedClass = config.classes.find { 
+    private fun applyProfileToSelection(profile: UserAcademicProfileEntity, config: List<ClassItem>) {
+        val matchedClass = config.find { 
             it.id.equals(profile.classId, ignoreCase = true) ||
             it.titleBn.equals(profile.classTitleBn, ignoreCase = true)
-        } ?: config.classes.firstOrNull()
+        } ?: config.firstOrNull()
 
         val matchedBatch = if (matchedClass != null && matchedClass.batches.isNotEmpty()) {
             val userBatch = profile.batchYear
@@ -246,6 +245,7 @@ class SyllabusViewModel(
 
         val batchYear = if (selectedClass.batches.isNotEmpty()) state.selectedBatch else null
         val groupCode = if (selectedClass.groups.isNotEmpty()) state.selectedGroup?.code else null
+        val groupTitle = if (selectedClass.groups.isNotEmpty()) state.selectedGroup?.titleBn else null
 
         viewModelScope.launch {
             _uiState.update { it.copy(isSubmitting = true, errorMessage = null) }
@@ -253,8 +253,10 @@ class SyllabusViewModel(
             val result = repository.updateSyllabus(
                 userId = userId,
                 classId = selectedClass.id,
+                classTitle = selectedClass.titleBn,
                 batchYear = batchYear,
-                groupCode = groupCode
+                groupCode = groupCode,
+                groupTitle = groupTitle
             )
 
             result.fold(

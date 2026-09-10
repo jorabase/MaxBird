@@ -105,7 +105,6 @@ class AuthService(
         const val HEADER_ACCEPT = "application/json"
         const val HEADER_TIMEZONE = "Asia/Dhaka"
         const val HEADER_BUILD_VERSION = "(605) 6.0.5"
-        const val HEADER_USER_AGENT = "Shikho/(605) 6.0.5 (Android 12; V2029; vivo 2027; en; WIFI; )"
         const val MEDIA_TYPE_JSON = "application/json; charset=utf-8"
 
         const val DEFAULT_DEVICE_ID = "cKA9zLvoSG60q7Zt6VDw56:APA91bGIMX5WNyvb0fzR2NC3kf0p5KZ7sRLaA_VumNWa8PmciBRAreHLkM9zBbKxmLR48PVEoOiKRsaqNObWov33YQpPK4Gpqj97HTsMmrzXX-XIRegCncI"
@@ -141,7 +140,7 @@ class AuthService(
             fallbackPhone: String = "",
             baseProfile: UserProfile = UserSessionManager.currentUserProfile
         ): UserProfile {
-            if (jsonString.isBlank()) return baseProfile.copy(isLoggedIn = true)
+            if (jsonString.isBlank()) return baseProfile
             return try {
                 val jsonObject = JSONObject(jsonString)
                 val dataObj = jsonObject.optJSONObject("data") ?: jsonObject
@@ -330,7 +329,7 @@ class AuthService(
                 )
             } catch (e: Exception) {
                 Log.e("AuthService", "parseUserProfileFromJson error: ${e.message}")
-                baseProfile.copy(isLoggedIn = true)
+                baseProfile
             }
         }
     }
@@ -358,11 +357,7 @@ class AuthService(
             })
         }
 
-        val userAgent = if (userId.isNotBlank()) {
-            "Shikho/(605) 6.0.5 (Android 12; V2029; vivo 2027; en; WIFI; $userId)"
-        } else {
-            HEADER_USER_AGENT
-        }
+        val userAgent = NetworkUtils.getUserAgent(userId)
 
         return try {
             val request = Request.Builder()
@@ -761,7 +756,7 @@ class AuthService(
                         .addHeader("Accept", HEADER_ACCEPT)
                         .addHeader("X-User-Timezone", HEADER_TIMEZONE)
                         .addHeader("Build-Version", HEADER_BUILD_VERSION)
-                        .addHeader("User-Agent", HEADER_USER_AGENT)
+                        .addHeader("User-Agent", NetworkUtils.getUserAgent())
                         .build()
 
                     client.newCall(request).execute().use { response ->
@@ -822,7 +817,7 @@ class AuthService(
             .addHeader("Content-Type", "application/json")
             .addHeader("X-User-Timezone", HEADER_TIMEZONE)
             .addHeader("Build-Version", HEADER_BUILD_VERSION)
-            .addHeader("User-Agent", HEADER_USER_AGENT)
+            .addHeader("User-Agent", NetworkUtils.getUserAgent())
             .build()
 
         try {
@@ -882,7 +877,7 @@ class AuthService(
             .addHeader("Content-Type", "application/json")
             .addHeader("X-User-Timezone", HEADER_TIMEZONE)
             .addHeader("Build-Version", HEADER_BUILD_VERSION)
-            .addHeader("User-Agent", HEADER_USER_AGENT)
+            .addHeader("User-Agent", NetworkUtils.getUserAgent())
             .build()
 
         try {
@@ -935,7 +930,7 @@ class AuthService(
             .addHeader("Content-Type", "application/json")
             .addHeader("X-User-Timezone", HEADER_TIMEZONE)
             .addHeader("Build-Version", HEADER_BUILD_VERSION)
-            .addHeader("User-Agent", HEADER_USER_AGENT)
+            .addHeader("User-Agent", NetworkUtils.getUserAgent())
             .build()
 
         try {
@@ -957,31 +952,32 @@ class AuthService(
                     val refreshToken = tokensObj?.optString("refresh_token")
                     val idToken = tokensObj?.optString("id_token")
 
-                    val validToken = if (accessToken.isNotEmpty()) accessToken else "session_token_${System.currentTimeMillis()}"
+                    if (accessToken.isNullOrEmpty()) {
+                        return@use VerifyOtpResult.Error("অ্যাক্সেস টোকেন পাওয়া যায়নি", statusCode)
+                    }
 
                     // Save token in repository and persistent storage
-                    authRepository.saveTokens(validToken, refreshToken, idToken)
+                    authRepository.saveTokens(accessToken, refreshToken, idToken)
 
                     // Parse profile
-                    val resolvedUserId = extractUserIdFromTokensOrJwt(tokensObj, validToken)
+                    val resolvedUserId = extractUserIdFromTokensOrJwt(tokensObj, accessToken)
                     var studentProfile = parseUserProfileFromJson(
                         jsonString = responseBodyString,
                         fallbackPhone = cleanPhone
                     ).copy(id = resolvedUserId.ifBlank { "student_$cleanPhone" })
 
-                    if (validToken.isNotEmpty()) {
-                        studentProfile = fetchUserProfile(validToken, studentProfile, resolvedUserId)
-                    }
+                    studentProfile = fetchUserProfile(accessToken, studentProfile, resolvedUserId)
+                    
                     studentProfile = studentProfile.copy(isLoggedIn = true)
                     UserSessionManager.saveSession(
-                        accessToken = validToken,
+                        accessToken = accessToken,
                         refreshToken = refreshToken,
                         idToken = idToken,
                         profile = studentProfile
                     )
 
                     VerifyOtpResult.Success(
-                        accessToken = validToken,
+                        accessToken = accessToken,
                         refreshToken = refreshToken,
                         idToken = idToken,
                         userProfile = studentProfile
@@ -1029,7 +1025,7 @@ class AuthService(
             .addHeader("Accept", HEADER_ACCEPT)
             .addHeader("X-User-Timezone", HEADER_TIMEZONE)
             .addHeader("Build-Version", HEADER_BUILD_VERSION)
-            .addHeader("User-Agent", HEADER_USER_AGENT)
+            .addHeader("User-Agent", NetworkUtils.getUserAgent())
             .addHeader("Content-Type", "application/json")
             .build()
 
@@ -1054,38 +1050,34 @@ class AuthService(
                         val refreshToken = tokensObj?.optString("refresh_token")
                         val idToken = tokensObj?.optString("id_token")
 
-                        val validTokenFinal = if (!accessToken.isNullOrEmpty()) {
-                            accessToken
-                        } else {
-                            "session_token_${System.currentTimeMillis()}"
+                        if (accessToken.isNullOrEmpty()) {
+                            return@use LoginResult.Error("অ্যাক্সেস টোকেন পাওয়া যায়নি", statusCode)
                         }
 
                         // 1. Initial parse of user profile from the login response body
-                        val resolvedUserId = extractUserIdFromTokensOrJwt(tokensObj, validTokenFinal)
+                        val resolvedUserId = extractUserIdFromTokensOrJwt(tokensObj, accessToken)
                         var studentProfile = parseUserProfileFromJson(
                             jsonString = responseBodyString,
                             fallbackPhone = cleanPhone
                         ).copy(id = resolvedUserId.ifBlank { "student_$cleanPhone" })
 
                         // Save in auth repository
-                        authRepository.saveTokens(validTokenFinal, refreshToken, idToken)
+                        authRepository.saveTokens(accessToken, refreshToken, idToken)
 
                         // 2. Fetch full profile using GraphQL GetProfile query
-                        if (validTokenFinal.isNotEmpty()) {
-                            studentProfile = fetchUserProfile(validTokenFinal, studentProfile, resolvedUserId)
-                        }
+                        studentProfile = fetchUserProfile(accessToken, studentProfile, resolvedUserId)
 
                         // 3. Immediately sync to persistent storage
                         studentProfile = studentProfile.copy(isLoggedIn = true)
                         UserSessionManager.saveSession(
-                            accessToken = validTokenFinal,
+                            accessToken = accessToken,
                             refreshToken = refreshToken,
                             idToken = idToken,
                             profile = studentProfile
                         )
 
                         LoginResult.Success(
-                            accessToken = validTokenFinal,
+                            accessToken = accessToken,
                             refreshToken = refreshToken,
                             idToken = idToken,
                             userProfile = studentProfile,

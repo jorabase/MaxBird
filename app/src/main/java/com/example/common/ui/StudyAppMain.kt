@@ -43,7 +43,6 @@ import com.example.common.ui.screens.ProfileScreen
 import com.example.common.ui.screens.QuarterDetailScreen
 import com.example.common.ui.screens.ShikhoAiScreen
 import com.example.common.ui.screens.SubjectDetailScreen
-import com.example.common.ui.screens.SyllabusChangeScreen
 import com.example.common.ui.screens.SyllabusSelectionScreen
 import com.example.common.ui.screens.SyllabusSummaryScreen
 import com.example.common.viewmodel.MyCoursesViewModel

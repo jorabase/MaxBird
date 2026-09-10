@@ -63,7 +63,7 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
-import com.example.common.model.AcademicClass
+import com.example.common.model.ClassItem
 import com.example.common.model.AcademicGroup
 import com.example.common.ui.components.DarkTextColor
 import com.example.common.ui.components.DisabledGray
@@ -185,7 +185,7 @@ private fun SyllabusSelectionTopBar(
 @Composable
 private fun SyllabusSelectionContent(
     uiState: SyllabusUiState,
-    onClassSelected: (AcademicClass) -> Unit,
+    onClassSelected: (ClassItem) -> Unit,
     onBatchSelected: (String) -> Unit,
     onGroupSelected: (AcademicGroup) -> Unit,
     modifier: Modifier = Modifier
@@ -210,7 +210,7 @@ private fun SyllabusSelectionContent(
         Spacer(modifier = Modifier.height(14.dp))
 
         // Dynamic 3-column Grid layout
-        val classes = config.classes
+        val classes = config
         val rows = (classes.size + 2) / 3
 
         Column(

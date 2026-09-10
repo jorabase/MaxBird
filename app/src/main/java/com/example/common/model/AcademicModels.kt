@@ -3,6 +3,13 @@ package com.example.common.model
 import com.squareup.moshi.Json
 import com.squareup.moshi.JsonClass
 
+@JsonClass(generateAdapter = true)
+data class ApiResponse<T>(
+    @Json(name = "status") val status: String,
+    @Json(name = "data") val data: T? = null,
+    @Json(name = "message") val message: String? = null
+)
+
 /**
  * Academic Group Data Contract (Science, Humanities, Business Studies, Engineering, etc.)
  */
@@ -18,35 +25,28 @@ typealias AcademicGroupConfig = AcademicGroup
 /**
  * Relational Academic Class Data Contract
  * Each class directly carries its own available batches and groups.
- * Serialized to match both snake_case and camelCase JSON contracts.
  */
 @JsonClass(generateAdapter = true)
-data class AcademicClass(
-    @Json(name = "id") val id: String,                         // "C5", "C6", "C9", "C11", etc.
-    @Json(name = "title_bn") val titleBn: String,                    // "ক্লাস ৬", "এইচএসসি", etc.
-    @Json(name = "badge") val badge: String,                      // "6", "HSC", "🎓"
-    @Json(name = "badge_type") val badgeType: String = "TEXT",     // "TEXT" or "ICON"
-    @Json(name = "batches") val batches: List<String> = emptyList(),          // e.g. ["২০২৫", "২০২৬", "২০২৭", "২০২৮"]
-    @Json(name = "groups") val groups: List<AcademicGroup> = emptyList()     // e.g. [Science, Humanities, etc.]
+data class ClassItem(
+    @Json(name = "id") val id: String,
+    @Json(name = "class_code") val classCode: String,
+    @Json(name = "title_bn") val titleBn: String,
+    @Json(name = "badge") val badge: String,
+    @Json(name = "badge_type") val badgeType: String = "TEXT",
+    @Json(name = "batches") val batches: List<String> = emptyList(),
+    @Json(name = "groups") val groups: List<AcademicGroup> = emptyList()
 )
 
-typealias AcademicClassConfig = AcademicClass
+typealias AcademicClassConfig = ClassItem
+typealias AcademicClass = ClassItem
 
 /**
- * Full Academic Configuration Payload
- */
-@JsonClass(generateAdapter = true)
-data class AcademicConfigResponse(
-    @Json(name = "classes") val classes: List<AcademicClass> = emptyList()
-)
-
-/**
- * Request and Response payloads for PATCH /api/v1/user/academic-profile
+ * Request and Response payloads for PATCH /api/v2/user/academic-profile
  */
 @JsonClass(generateAdapter = true)
 data class UpdateSyllabusRequest(
     @Json(name = "class_id") val classId: String,
-    @Json(name = "batch_year") val batchYear: String? = null,
+    @Json(name = "batch") val batch: String? = null,
     @Json(name = "group_code") val groupCode: String? = null
 )
 
@@ -85,3 +85,4 @@ sealed interface AppGlobalEvent {
         val groupTitleBn: String?
     ) : AppGlobalEvent
 }
+
