@@ -265,26 +265,28 @@ object ShikhoServices {
     }
 
     private fun fallbackClassList(): List<ShikhoClassItem> = listOf(
-        ShikhoClassItem(5, "C5", "Class 5", "ক্লাস ৫", isGroupRequired = false, parentName = "SSC", parentNameBn = "এসএসসি"),
-        ShikhoClassItem(6, "C6", "Class 6", "ক্লাস ৬", isGroupRequired = false, parentName = "SSC", parentNameBn = "এসএসসি"),
-        ShikhoClassItem(7, "C7", "Class 7", "ক্লাস ৭", isGroupRequired = false, parentName = "SSC", parentNameBn = "এসএসসি"),
-        ShikhoClassItem(8, "C8", "Class 8", "ক্লাস ৮", isGroupRequired = false, parentName = "SSC", parentNameBn = "এসএসসি"),
-        ShikhoClassItem(9, "C9", "Class 9", "ক্লাস ৯", isGroupRequired = true, parentName = "SSC", parentNameBn = "এসএসসি"),
-        ShikhoClassItem(11, "C10", "Class 10", "ক্লাস ১০", isGroupRequired = true, parentName = "SSC", parentNameBn = "এসএসসি"),
-        ShikhoClassItem(12, "C11", "Class 11", "ক্লাস ১১", isGroupRequired = true, parentName = "HSC", parentNameBn = "এইচএসসি"),
-        ShikhoClassItem(13, "C12", "Class 12", "ক্লাস ১২", isGroupRequired = true, parentName = "HSC", parentNameBn = "এইচএসসি")
+        ShikhoClassItem(5, "C05", "Class 5", "ক্লাস ৫", isGroupRequired = false, parentName = "Primary", parentNameBn = "প্রাইমারি"),
+        ShikhoClassItem(6, "C06", "Class 6", "ক্লাস ৬", isGroupRequired = false, parentName = "Junior", parentNameBn = "জুনিয়র"),
+        ShikhoClassItem(7, "C07", "Class 7", "ক্লাস ৭", isGroupRequired = false, parentName = "Junior", parentNameBn = "জুনিয়র"),
+        ShikhoClassItem(8, "C08", "Class 8", "ক্লাস ৮", isGroupRequired = false, parentName = "Junior", parentNameBn = "জুনিয়র"),
+        ShikhoClassItem(9, "C09", "Class 9", "ক্লাস ৯", isGroupRequired = true, parentName = "SSC", parentNameBn = "এসএসসি"),
+        ShikhoClassItem(10, "C10", "Class 10", "ক্লাস ১০", isGroupRequired = true, parentName = "SSC", parentNameBn = "এসএসসি"),
+        ShikhoClassItem(11, "C11", "HSC", "এইচএসসি", isGroupRequired = true, parentName = "HSC", parentNameBn = "এইচএসসি"),
+        ShikhoClassItem(12, "C12", "HSC 2nd Year", "এইচএসসি (২য় বর্ষ)", isGroupRequired = true, parentName = "HSC", parentNameBn = "এইচএসসি"),
+        ShikhoClassItem(13, "CAD", "Admission", "এডমিশন", isGroupRequired = true, parentName = "Admission", parentNameBn = "এডমিশন")
     )
 
-    private fun fallbackBatchOptions(classCode: String): List<BatchOption> = when (classCode) {
-        "C5" -> listOf(BatchOption(2030, "Old Batch"), BatchOption(2031, "Old Batch"), BatchOption(2032, "Running Batch"))
-        "C6" -> listOf(BatchOption(2029, "Old Batch"), BatchOption(2030, "Old Batch"), BatchOption(2031, "Running Batch"), BatchOption(2032, "New Year Batch"))
-        "C7" -> listOf(BatchOption(2028, "Old Batch"), BatchOption(2029, "Old Batch"), BatchOption(2030, "Running Batch"), BatchOption(2031, "New Year Batch"))
-        "C8" -> listOf(BatchOption(2027, "Old Batch"), BatchOption(2028, "Old Batch"), BatchOption(2029, "Running Batch"), BatchOption(2030, "New Year Batch"))
-        "C9" -> listOf(BatchOption(2026, "Old Batch"), BatchOption(2027, "Old Batch"), BatchOption(2028, "Running Batch"), BatchOption(2029, "New Year Batch"))
-        "C10" -> listOf(BatchOption(2026, "Old Batch"), BatchOption(2027, "Running Batch"))
-        "C11" -> listOf(BatchOption(2025, "Old Batch"), BatchOption(2026, "Old Batch"), BatchOption(2027, "New C11 Batch"), BatchOption(2028, "Next Year Batch"))
-        "C12" -> listOf(BatchOption(2024, "Old Batch"), BatchOption(2025, "Old Batch"), BatchOption(2026, "Running Admission Batch"), BatchOption(2027, "Pre-admission Batch"))
-        else -> listOf(BatchOption(2027, "New C11 Batch"), BatchOption(2028, "Next Year Batch"))
+    private fun fallbackBatchOptions(classCode: String): List<BatchOption> = when (classCode.uppercase()) {
+        "C5", "C05" -> listOf(BatchOption(2031, "Running Batch"), BatchOption(2032, "New Year Batch"))
+        "C6", "C06" -> listOf(BatchOption(2030, "Running Batch"), BatchOption(2031, "New Year Batch"))
+        "C7", "C07" -> listOf(BatchOption(2029, "Running Batch"), BatchOption(2030, "New Year Batch"))
+        "C8", "C08" -> listOf(BatchOption(2028, "Running Batch"), BatchOption(2029, "New Year Batch"))
+        "C9", "C09" -> listOf(BatchOption(2027, "SSC '27 Batch"), BatchOption(2028, "SSC '28 Batch"))
+        "C10" -> listOf(BatchOption(2026, "SSC '26 Batch"), BatchOption(2027, "SSC '27 Batch"))
+        "C11" -> listOf(BatchOption(2026, "HSC '26"), BatchOption(2027, "HSC '27"), BatchOption(2028, "HSC '28"), BatchOption(2029, "HSC '29"))
+        "C12" -> listOf(BatchOption(2025, "HSC '25"), BatchOption(2026, "HSC '26 2nd Year"), BatchOption(2027, "HSC '27 2nd Year"))
+        "CAD" -> listOf(BatchOption(2026, "Admission '26"), BatchOption(2027, "Admission '27"))
+        else -> listOf(BatchOption(2027, "HSC '27"), BatchOption(2028, "HSC '28"))
     }
 
     suspend fun getAcademicProgramsByEnrollment(className: String): Result<List<GqlAcademicProgram>> =

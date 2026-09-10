@@ -38,6 +38,19 @@ object SyllabusDatabaseManager {
     fun getEnrolledCoursesForProfile(profile: UserProfile): List<EnrolledCourse> {
         val classCode = getClassCode(profile.studentClass)
         return when (classCode) {
+            "C05" -> listOf(
+                EnrolledCourse(
+                    id = "c05_enrolled_main",
+                    title = "ক্লাস ৫ - বার্ষিক ও প্রাথমিক মেধা অন্বেষণ প্রস্তুতি",
+                    badge = "ভর্তি হয়েছো",
+                    instructor = "মোজাম্মেল হক",
+                    totalClasses = 90,
+                    completedClasses = 8,
+                    colorPrimaryHex = 0xFF0284C7,
+                    colorSecondaryHex = 0xFF38BDF8
+                )
+            )
+
             "C06" -> listOf(
                 EnrolledCourse(
                     id = "c06_enrolled_main",
@@ -87,48 +100,98 @@ object SyllabusDatabaseManager {
                 )
             )
 
-            "C09" -> listOf(
-                EnrolledCourse(
-                    id = "c09_enrolled_main",
-                    title = "ক্লাস ৯ - এসএসসি ফাউন্ডেশন কোর্স (২০২৭)",
-                    badge = "ভর্তি হয়েছো",
-                    instructor = "অপূর্ব অপু ও টিম",
-                    totalClasses = 135,
-                    completedClasses = 18,
-                    colorPrimaryHex = 0xFF2563EB,
-                    colorSecondaryHex = 0xFF60A5FA
-                )
-            )
+            "C09" -> {
+                if (profile.group.contains("বিজ্ঞান") || profile.group.contains("Science")) {
+                    listOf(
+                        EnrolledCourse(
+                            id = "c09_sci_enrolled_main",
+                            title = "ক্লাস ৯ বিজ্ঞান - গণিত ও পদার্থবিজ্ঞান ফাউন্ডেশন",
+                            badge = "ভর্তি হয়েছো",
+                            instructor = "অপূর্ব অপু ও টিম",
+                            totalClasses = 135,
+                            completedClasses = 18,
+                            colorPrimaryHex = 0xFF2563EB,
+                            colorSecondaryHex = 0xFF60A5FA
+                        )
+                    )
+                } else if (profile.group.contains("ব্যবসায়") || profile.group.contains("Business")) {
+                    listOf(
+                        EnrolledCourse(
+                            id = "c09_bus_enrolled_main",
+                            title = "ক্লাস ৯ ব্যবসায় শিক্ষা - হিসাববিজ্ঞান বেসিক",
+                            badge = "ভর্তি হয়েছো",
+                            instructor = "জাভেদ করিম",
+                            totalClasses = 110,
+                            completedClasses = 10,
+                            colorPrimaryHex = 0xFFD97706,
+                            colorSecondaryHex = 0xFFFBBF24
+                        )
+                    )
+                } else {
+                    listOf(
+                        EnrolledCourse(
+                            id = "c09_hum_enrolled_main",
+                            title = "ক্লাস ৯ মানবিক - ইতিহাস ও ভূগোল ফাউন্ডেশন",
+                            badge = "ভর্তি হয়েছো",
+                            instructor = "মোশতাক আহমেদ ও টিম",
+                            totalClasses = 105,
+                            completedClasses = 12,
+                            colorPrimaryHex = 0xFF7C3AED,
+                            colorSecondaryHex = 0xFFA78BFA
+                        )
+                    )
+                }
+            }
 
-            "C10" -> listOf(
-                EnrolledCourse(
-                    id = "c10_enrolled_main",
-                    title = "এসএসসি '২৬ - পূর্ণাঙ্গ রিভিশন ও টেস্ট পেপার সলভ",
-                    badge = "ভর্তি হয়েছো",
-                    instructor = "রাহাত স্যার ও টিম",
-                    totalClasses = 150,
-                    completedClasses = 32,
-                    colorPrimaryHex = 0xFF7C3AED,
-                    colorSecondaryHex = 0xFFA78BFA
-                ),
-                EnrolledCourse(
-                    id = "c10_enrolled_math",
-                    title = "এসএসসি উচ্চতর গণিত স্পেশাল ব্যাচ",
-                    badge = "ভর্তি হয়েছো",
-                    instructor = "কবির হোসেন",
-                    totalClasses = 50,
-                    completedClasses = 14,
-                    colorPrimaryHex = 0xFF0D9488,
-                    colorSecondaryHex = 0xFF2DD4BF
-                )
-            )
+            "C10" -> {
+                if (profile.group.contains("বিজ্ঞান") || profile.group.contains("Science")) {
+                    listOf(
+                        EnrolledCourse(
+                            id = "c10_sci_enrolled_main",
+                            title = "এসএসসি বিজ্ঞান - পূর্ণাঙ্গ রিভিশন ও টেস্ট পেপার সলভ",
+                            badge = "ভর্তি হয়েছো",
+                            instructor = "রাহাত স্যার ও টিম",
+                            totalClasses = 150,
+                            completedClasses = 32,
+                            colorPrimaryHex = 0xFF7C3AED,
+                            colorSecondaryHex = 0xFFA78BFA
+                        )
+                    )
+                } else if (profile.group.contains("ব্যবসায়") || profile.group.contains("Business")) {
+                    listOf(
+                        EnrolledCourse(
+                            id = "c10_bus_enrolled_main",
+                            title = "এসএসসি ব্যবসায় শিক্ষা - হিসাববিজ্ঞান ও ফিন্যান্স",
+                            badge = "ভর্তি হয়েছো",
+                            instructor = "কবির হোসেন",
+                            totalClasses = 125,
+                            completedClasses = 16,
+                            colorPrimaryHex = 0xFFD97706,
+                            colorSecondaryHex = 0xFFFBBF24
+                        )
+                    )
+                } else {
+                    listOf(
+                        EnrolledCourse(
+                            id = "c10_hum_enrolled_main",
+                            title = "এসএসসি মানবিক - ইতিহাস, অর্থনীতি ও পৌরনীতি",
+                            badge = "ভর্তি হয়েছো",
+                            instructor = "মোশতাক আহমেদ ও টিম",
+                            totalClasses = 120,
+                            completedClasses = 15,
+                            colorPrimaryHex = 0xFF4338CA,
+                            colorSecondaryHex = 0xFF6366F1
+                        )
+                    )
+                }
+            }
 
             "C11" -> {
-                if (profile.group.contains("বিজ্ঞান")) {
+                if (profile.group.contains("বিজ্ঞান") || profile.group.contains("Science")) {
                     listOf(
                         EnrolledCourse(
                             id = "hsc_sci_enrolled_main",
-                            title = "HSC '28 বিজ্ঞান - প্রথম বর্ষ পূর্ণাঙ্গ প্রস্তুতি",
+                            title = "HSC বিজ্ঞান - ১ম বর্ষ পূর্ণাঙ্গ প্রস্তুতি",
                             badge = "ভর্তি হয়েছো",
                             instructor = "ড. সাজ্জাদ ও টিম",
                             totalClasses = 160,
@@ -137,11 +200,11 @@ object SyllabusDatabaseManager {
                             colorSecondaryHex = 0xFF38BDF8
                         )
                     )
-                } else if (profile.group.contains("ব্যবসায়")) {
+                } else if (profile.group.contains("ব্যবসায়") || profile.group.contains("Business")) {
                     listOf(
                         EnrolledCourse(
                             id = "hsc_bus_enrolled_main",
-                            title = "HSC '27 ব্যবসায় শিক্ষা - হিসাববিজ্ঞান ও ফিন্যান্স",
+                            title = "HSC ব্যবসায় শিক্ষা - ১ম বর্ষ হিসাববিজ্ঞান ও ফিন্যান্স",
                             badge = "ভর্তি হয়েছো",
                             instructor = "জাভেদ করিম",
                             totalClasses = 120,
@@ -155,7 +218,7 @@ object SyllabusDatabaseManager {
                     listOf(
                         EnrolledCourse(
                             id = "hsc-27-humanities",
-                            title = "HSC '27 মানবিক - ২য় বর্ষ প্রস্তুতি",
+                            title = "HSC মানবিক - ১ম বর্ষ প্রস্তুতি",
                             badge = "ভর্তি হয়েছো",
                             instructor = "মোশতাক আহমেদ ও টিম",
                             totalClasses = 140,
@@ -167,18 +230,82 @@ object SyllabusDatabaseManager {
                 }
             }
 
+            "C12" -> {
+                if (profile.group.contains("বিজ্ঞান") || profile.group.contains("Science")) {
+                    listOf(
+                        EnrolledCourse(
+                            id = "hsc12_sci_enrolled_main",
+                            title = "HSC বিজ্ঞান - ২য় বর্ষ ফাইনাল ও এডমিশন প্রি-প্রিপারেশন",
+                            badge = "ভর্তি হয়েছো",
+                            instructor = "ড. সাজ্জাদ ও টিম",
+                            totalClasses = 175,
+                            completedClasses = 20,
+                            colorPrimaryHex = 0xFF0284C7,
+                            colorSecondaryHex = 0xFF38BDF8
+                        )
+                    )
+                } else if (profile.group.contains("ব্যবসায়") || profile.group.contains("Business")) {
+                    listOf(
+                        EnrolledCourse(
+                            id = "hsc12_bus_enrolled_main",
+                            title = "HSC ব্যবসায় শিক্ষা - ২য় বর্ষ হিসাববিজ্ঞান ও ফিন্যান্স",
+                            badge = "ভর্তি হয়েছো",
+                            instructor = "জাভেদ করিম",
+                            totalClasses = 130,
+                            completedClasses = 18,
+                            colorPrimaryHex = 0xFFD97706,
+                            colorSecondaryHex = 0xFFFBBF24
+                        )
+                    )
+                } else {
+                    listOf(
+                        EnrolledCourse(
+                            id = "hsc12_hum_enrolled_main",
+                            title = "HSC মানবিক - ২য় বর্ষ প্রস্তুতি",
+                            badge = "ভর্তি হয়েছো",
+                            instructor = "মোশতাক আহমেদ ও টিম",
+                            totalClasses = 140,
+                            completedClasses = 15,
+                            colorPrimaryHex = 0xFF4338CA,
+                            colorSecondaryHex = 0xFF6366F1
+                        )
+                    )
+                }
+            }
+
             else -> listOf(
                 EnrolledCourse(
                     id = "admission_enrolled_main",
-                    title = "বিশ্ববিদ্যালয় ভর্তি পরীক্ষা প্রস্তুতি",
+                    title = "বিশ্ববিদ্যালয় ভর্তি পরীক্ষা পূর্ণাঙ্গ প্রস্তুতি",
                     badge = "ভর্তি হয়েছো",
-                    instructor = "শামীম স্যার",
-                    totalClasses = 90,
+                    instructor = "শামীম স্যার ও টিম",
+                    totalClasses = 120,
                     completedClasses = 10,
                     colorPrimaryHex = 0xFFBE185D,
                     colorSecondaryHex = 0xFFF472B6
                 )
             )
+        }
+    }
+
+    private fun getDefaultClassTag(params: AcademicProgramFilterParams): String {
+        val groupBn = when {
+            params.group.contains("Science") || params.group.contains("বিজ্ঞান") -> "বিজ্ঞান"
+            params.group.contains("Business") || params.group.contains("ব্যবসায়") || params.group.contains("BusinessStudies") -> "ব্যবসায় শিক্ষা"
+            params.group.contains("Humanities") || params.group.contains("মানবিক") -> "মানবিক"
+            else -> "সাধারণ"
+        }
+        val batchStr = params.batchId.ifBlank { "HSC 2027" }
+        return when (params.className) {
+            "C06" -> "ক্লাস ৬ • সাধারণ"
+            "C07" -> "ক্লাস ৭ • সাধারণ"
+            "C08" -> "ক্লাস ৮ • সাধারণ"
+            "C09" -> "ক্লাস ৯ • সাধারণ"
+            "C10" -> "এসএসসি • সাধারণ"
+            "C11" -> "$batchStr • $groupBn"
+            "C12" -> "HSC ২য় বর্ষ • $groupBn"
+            "CAD" -> "এডমিশন • ভর্তি প্রস্তুতি"
+            else -> "$batchStr • $groupBn"
         }
     }
 
@@ -188,7 +315,50 @@ object SyllabusDatabaseManager {
      */
     fun getCatalogForParams(params: AcademicProgramFilterParams): AcademicProgramsCatalog {
         val classCode = params.className
-        return when (classCode) {
+        val defaultTag = getDefaultClassTag(params)
+        val catalog = when (classCode) {
+            "C05" -> AcademicProgramsCatalog(
+                enrolledPrograms = listOf(
+                    AcademicProgramItem(
+                        id = "c05_prog_enrolled_1",
+                        title = "ক্লাস ৫ - বার্ষিক ও প্রাথমিক মেধা অন্বেষণ প্রস্তুতি",
+                        type = "Paid",
+                        hasEnrolment = true,
+                        isActive = true,
+                        isFree = false,
+                        badge = "ভর্তি হয়েছো",
+                        phasePricing = 1000
+                    )
+                ),
+                freePrograms = listOf(
+                    AcademicProgramItem(
+                        id = "c05_prog_free_1",
+                        title = "The Next Champ – ক্লাস ৫ প্রাথমিক মেধা অন্বেষণ",
+                        type = "Free",
+                        hasEnrolment = false,
+                        isActive = true,
+                        isFree = true,
+                        badge = "সম্পূর্ণ ফ্রি!",
+                        phasePricing = 0
+                    )
+                ),
+                allCoursesPrograms = listOf(
+                    AcademicProgramItem(
+                        id = "c05_prog_all_1",
+                        title = "ক্লাস ৫ প্রাথমিক গণিত ও বিজ্ঞান স্পেশাল",
+                        type = "Paid",
+                        hasEnrolment = false,
+                        isActive = true,
+                        isFree = false,
+                        trialEnabled = true,
+                        trialDuration = 3,
+                        badge = "৩ দিন ফ্রিতে শেখো",
+                        phasePricing = 800
+                    )
+                ),
+                blacklistedPrograms = emptyList()
+            )
+
             "C06" -> AcademicProgramsCatalog(
                 enrolledPrograms = listOf(
                     AcademicProgramItem(
@@ -380,120 +550,55 @@ object SyllabusDatabaseManager {
                 blacklistedPrograms = emptyList()
             )
 
-            "C09" -> AcademicProgramsCatalog(
-                enrolledPrograms = listOf(
-                    AcademicProgramItem(
-                        id = "c09_prog_enrolled_1",
-                        title = "ক্লাস ৯ - এসএসসি ফাউন্ডেশন কোর্স (২০২৭)",
-                        type = "Paid",
-                        hasEnrolment = true,
-                        isActive = true,
-                        isFree = false,
-                        badge = "ভর্তি হয়েছো",
-                        phasePricing = 1600
+            "C09" -> {
+                if (params.group.contains("Science")) {
+                    AcademicProgramsCatalog(
+                        enrolledPrograms = listOf(AcademicProgramItem(id = "c09_sci_enrolled", title = "ক্লাস ৯ বিজ্ঞান - গণিত ও পদার্থবিজ্ঞান ফাউন্ডেশন", type = "Paid", hasEnrolment = true, isActive = true, phasePricing = 1600)),
+                        freePrograms = listOf(AcademicProgramItem(id = "c09_sci_free", title = "ক্লাস ৯ বিজ্ঞান মেধা অন্বেষণ", type = "Free", hasEnrolment = false, isActive = true, isFree = true, phasePricing = 0)),
+                        allCoursesPrograms = listOf(AcademicProgramItem(id = "c09_sci_all", title = "ক্লাস ৯ উচ্চতর গণিত ও রসায়ন মাস্টারক্লাস", type = "Paid", hasEnrolment = false, isActive = true, trialEnabled = true, trialDuration = 3, phasePricing = 1200)),
+                        blacklistedPrograms = emptyList()
                     )
-                ),
-                freePrograms = listOf(
-                    AcademicProgramItem(
-                        id = "c09_prog_free_1",
-                        title = "The Next Champ – ক্লাস ৯ বিজ্ঞান মেধা অন্বেষণ",
-                        type = "Free",
-                        hasEnrolment = false,
-                        isActive = true,
-                        isFree = true,
-                        badge = "সম্পূর্ণ ফ্রি!",
-                        phasePricing = 0
+                } else if (params.group.contains("Business") || params.group.contains("ব্যবসায়")) {
+                    AcademicProgramsCatalog(
+                        enrolledPrograms = listOf(AcademicProgramItem(id = "c09_bus_enrolled", title = "ক্লাস ৯ ব্যবসায় শিক্ষা - হিসাববিজ্ঞান বেসিক", type = "Paid", hasEnrolment = true, isActive = true, phasePricing = 1500)),
+                        freePrograms = listOf(AcademicProgramItem(id = "c09_bus_free", title = "ক্লাস ৯ ফিন্যান্স ও ব্যাংকিং পরিচিতি", type = "Free", hasEnrolment = false, isActive = true, isFree = true, phasePricing = 0)),
+                        allCoursesPrograms = listOf(AcademicProgramItem(id = "c09_bus_all", title = "ক্লাস ৯ উদ্যোক্তা উন্নয়ন ও হিসাববিজ্ঞান", type = "Paid", hasEnrolment = false, isActive = true, trialEnabled = true, trialDuration = 3, phasePricing = 1100)),
+                        blacklistedPrograms = emptyList()
                     )
-                ),
-                allCoursesPrograms = listOf(
-                    AcademicProgramItem(
-                        id = "c09_prog_all_1",
-                        title = "ক্লাস ৯ উচ্চতর গণিত ও পদার্থবিজ্ঞান স্পেশাল",
-                        type = "Paid",
-                        hasEnrolment = false,
-                        isActive = true,
-                        isFree = false,
-                        trialEnabled = true,
-                        trialDuration = 3,
-                        badge = "৩ দিন ফ্রিতে শেখো",
-                        phasePricing = 1200
+                } else {
+                    AcademicProgramsCatalog(
+                        enrolledPrograms = listOf(AcademicProgramItem(id = "c09_hum_enrolled", title = "ক্লাস ৯ মানবিক - ইতিহাস ও ভূগোল ফাউন্ডেশন", type = "Paid", hasEnrolment = true, isActive = true, phasePricing = 1400)),
+                        freePrograms = listOf(AcademicProgramItem(id = "c09_hum_free", title = "ক্লাস ৯ বাংলাদেশ ও বিশ্বপরিচয়", type = "Free", hasEnrolment = false, isActive = true, isFree = true, phasePricing = 0)),
+                        allCoursesPrograms = listOf(AcademicProgramItem(id = "c09_hum_all", title = "ক্লাস ৯ পৌরনীতি ও নাগরিকতা স্পেশাল", type = "Paid", hasEnrolment = false, isActive = true, trialEnabled = true, trialDuration = 3, phasePricing = 1000)),
+                        blacklistedPrograms = emptyList()
                     )
-                ),
-                blacklistedPrograms = emptyList()
-            )
+                }
+            }
 
-            "C10" -> AcademicProgramsCatalog(
-                enrolledPrograms = listOf(
-                    AcademicProgramItem(
-                        id = "c10_prog_enrolled_1",
-                        title = "এসএসসি '২৬ - পূর্ণাঙ্গ রিভিশন ও টেস্ট পেপার সলভ",
-                        type = "Paid",
-                        hasEnrolment = true,
-                        isActive = true,
-                        isFree = false,
-                        badge = "ভর্তি হয়েছো",
-                        phasePricing = 2200
-                    ),
-                    AcademicProgramItem(
-                        id = "c10_prog_enrolled_2",
-                        title = "এসএসসি উচ্চতর গণিত স্পেশাল ব্যাচ",
-                        type = "Paid",
-                        hasEnrolment = true,
-                        isActive = true,
-                        isFree = false,
-                        badge = "ভর্তি হয়েছো",
-                        phasePricing = 999
+            "C10" -> {
+                if (params.group.contains("Science")) {
+                    AcademicProgramsCatalog(
+                        enrolledPrograms = listOf(AcademicProgramItem(id = "c10_sci_enrolled", title = "এসএসসি বিজ্ঞান - পূর্ণাঙ্গ রিভিশন ও টেস্ট পেপার সলভ", type = "Paid", hasEnrolment = true, isActive = true, phasePricing = 2200)),
+                        freePrograms = listOf(AcademicProgramItem(id = "c10_sci_free", title = "এসএসসি বিজ্ঞান মেধা অন্বেষণ চ্যালেঞ্জ", type = "Free", hasEnrolment = false, isActive = true, isFree = true, phasePricing = 0)),
+                        allCoursesPrograms = listOf(AcademicProgramItem(id = "c10_sci_all", title = "এসএসসি পদার্থবিজ্ঞান, রসায়ন ও উচ্চতর গণিত ফাইনাল", type = "Paid", hasEnrolment = false, isActive = true, trialEnabled = true, trialDuration = 3, phasePricing = 1450)),
+                        blacklistedPrograms = emptyList()
                     )
-                ),
-                freePrograms = listOf(
-                    AcademicProgramItem(
-                        id = "c10_prog_free_1",
-                        title = "The Next Champ – এসএসসি ‘২৬ চ্যালেঞ্জ",
-                        type = "Free",
-                        hasEnrolment = false,
-                        isActive = true,
-                        isFree = true,
-                        badge = "সম্পূর্ণ ফ্রি!",
-                        phasePricing = 0
-                    ),
-                    AcademicProgramItem(
-                        id = "c10_prog_free_2",
-                        title = "এসএসসি সাধারণ গণিত ফর্মুলা শিট ও ট্রিকস",
-                        type = "Free",
-                        hasEnrolment = false,
-                        isActive = true,
-                        isFree = true,
-                        badge = "সম্পূর্ণ ফ্রি!",
-                        phasePricing = 0
+                } else if (params.group.contains("Business") || params.group.contains("ব্যবসায়")) {
+                    AcademicProgramsCatalog(
+                        enrolledPrograms = listOf(AcademicProgramItem(id = "c10_bus_enrolled", title = "এসএসসি ব্যবসায় শিক্ষা - হিসাববিজ্ঞান ও ফিন্যান্স", type = "Paid", hasEnrolment = true, isActive = true, phasePricing = 2000)),
+                        freePrograms = listOf(AcademicProgramItem(id = "c10_bus_free", title = "এসএসসি ব্যবসায় উদ্যোগ ফর্মুলা শিট", type = "Free", hasEnrolment = false, isActive = true, isFree = true, phasePricing = 0)),
+                        allCoursesPrograms = listOf(AcademicProgramItem(id = "c10_bus_all", title = "এসএসসি হিসাববিজ্ঞান টেস্ট পেপার সলভ", type = "Paid", hasEnrolment = false, isActive = true, trialEnabled = true, trialDuration = 3, phasePricing = 1300)),
+                        blacklistedPrograms = emptyList()
                     )
-                ),
-                allCoursesPrograms = listOf(
-                    AcademicProgramItem(
-                        id = "c10_prog_all_1",
-                        title = "এসএসসি বিজ্ঞান - ফিজিক্স, কেমিস্ট্রি ও বায়োলজি রিভিশন",
-                        type = "Paid",
-                        hasEnrolment = false,
-                        isActive = true,
-                        isFree = false,
-                        trialEnabled = true,
-                        trialDuration = 3,
-                        badge = "৩ দিন ফ্রিতে শেখো",
-                        phasePricing = 1450
-                    ),
-                    AcademicProgramItem(
-                        id = "c10_prog_expired",
-                        title = "এসএসসি চূড়ান্ত বোর্ড প্রশ্ন ও টেস্ট পেপার সমাধান",
-                        type = "FullApTrial",
-                        hasEnrolment = false,
-                        isActive = false,
-                        isFree = false,
-                        trialEndDate = "2025-11-20",
-                        badge = "ফ্রিতে শেখা শেষ",
-                        phasePricing = 1800
+                } else {
+                    AcademicProgramsCatalog(
+                        enrolledPrograms = listOf(AcademicProgramItem(id = "c10_hum_enrolled", title = "এসএসসি মানবিক - ইতিহাস, অর্থনীতি ও পৌরনীতি", type = "Paid", hasEnrolment = true, isActive = true, phasePricing = 1900)),
+                        freePrograms = listOf(AcademicProgramItem(id = "c10_hum_free", title = "এসএসসি মানবিক বিষয়ভিত্তিক শর্টকাট সাজেশন", type = "Free", hasEnrolment = false, isActive = true, isFree = true, phasePricing = 0)),
+                        allCoursesPrograms = listOf(AcademicProgramItem(id = "c10_hum_all", title = "এসএসসি ভূগোল ও পরিবেশ স্পেশাল কোর্স", type = "Paid", hasEnrolment = false, isActive = true, trialEnabled = true, trialDuration = 3, phasePricing = 1200)),
+                        blacklistedPrograms = emptyList()
                     )
-                ),
-                blacklistedPrograms = emptyList()
-            )
+                }
+            }
 
             "C11" -> {
                 if (params.group.contains("Science")) {
@@ -501,7 +606,7 @@ object SyllabusDatabaseManager {
                         enrolledPrograms = listOf(
                             AcademicProgramItem(
                                 id = "hsc_sci_enrolled_1",
-                                title = "HSC '28 বিজ্ঞান - ১ম বর্ষ পূর্ণাঙ্গ প্রস্তুতি",
+                                title = "HSC বিজ্ঞান - ১ম বর্ষ পূর্ণাঙ্গ প্রস্তুতি",
                                 type = "Paid",
                                 hasEnrolment = true,
                                 isActive = true,
@@ -513,7 +618,7 @@ object SyllabusDatabaseManager {
                         freePrograms = listOf(
                             AcademicProgramItem(
                                 id = "hsc_sci_free_1",
-                                title = "The Next Champ – HSC ‘28 Science",
+                                title = "The Next Champ – HSC Science",
                                 type = "Free",
                                 hasEnrolment = false,
                                 isActive = true,
@@ -534,27 +639,16 @@ object SyllabusDatabaseManager {
                                 trialDuration = 3,
                                 badge = "৩ দিন ফ্রিতে শেখো",
                                 phasePricing = 1600
-                            ),
-                            AcademicProgramItem(
-                                id = "hsc_sci_expired",
-                                title = "HSC রসায়ন ও জীববিজ্ঞান ১ম পত্র ফাউন্ডেশন",
-                                type = "FullApTrial",
-                                hasEnrolment = false,
-                                isActive = false,
-                                isFree = false,
-                                trialEndDate = "2025-12-15",
-                                badge = "ফ্রিতে শেখা শেষ",
-                                phasePricing = 2200
                             )
                         ),
                         blacklistedPrograms = emptyList()
                     )
-                } else if (params.group.contains("Business")) {
+                } else if (params.group.contains("Business") || params.group.contains("ব্যবসায়") || params.group.contains("BusinessStudies")) {
                     AcademicProgramsCatalog(
                         enrolledPrograms = listOf(
                             AcademicProgramItem(
                                 id = "hsc_bus_enrolled_1",
-                                title = "HSC '27 ব্যবসায় শিক্ষা - হিসাববিজ্ঞান ও ফিন্যান্স",
+                                title = "HSC ব্যবসায় শিক্ষা - হিসাববিজ্ঞান ও ফিন্যান্স",
                                 type = "Paid",
                                 hasEnrolment = true,
                                 isActive = true,
@@ -566,7 +660,7 @@ object SyllabusDatabaseManager {
                         freePrograms = listOf(
                             AcademicProgramItem(
                                 id = "hsc_bus_free_1",
-                                title = "The Next Champ – HSC ‘27 Business Studies",
+                                title = "The Next Champ – HSC Business Studies",
                                 type = "Free",
                                 hasEnrolment = false,
                                 isActive = true,
@@ -597,7 +691,7 @@ object SyllabusDatabaseManager {
                         enrolledPrograms = listOf(
                             AcademicProgramItem(
                                 id = "6864d3a806800acba2e27099",
-                                title = "HSC '27 মানবিক - ২য় বর্ষ প্রস্তুতি",
+                                title = "HSC মানবিক - ১ম ও ২য় বর্ষ প্রস্তুতি",
                                 type = "Paid",
                                 hasEnrolment = true,
                                 isActive = true,
@@ -620,7 +714,7 @@ object SyllabusDatabaseManager {
                         freePrograms = listOf(
                             AcademicProgramItem(
                                 id = "the_next_champ_hsc27",
-                                title = "The Next Champ – HSC ‘27",
+                                title = "The Next Champ – HSC",
                                 type = "Free",
                                 hasEnrolment = false,
                                 isActive = true,
@@ -642,7 +736,7 @@ object SyllabusDatabaseManager {
                         allCoursesPrograms = listOf(
                             AcademicProgramItem(
                                 id = "duronto_hsc28_hum",
-                                title = "দুরন্ত HSC '28 মানবিক",
+                                title = "দুরন্ত HSC মানবিক মাস্টারক্লাস",
                                 type = "Paid",
                                 hasEnrolment = false,
                                 isActive = true,
@@ -651,17 +745,6 @@ object SyllabusDatabaseManager {
                                 trialDuration = 3,
                                 badge = "৩ দিন ফ্রিতে শেখো",
                                 phasePricing = 2950
-                            ),
-                            AcademicProgramItem(
-                                id = "hsc27_expired_trial",
-                                title = "HSC '27 মানবিক - ১ম বর্ষ ফাইনাল রিভিশন",
-                                type = "FullApTrial",
-                                hasEnrolment = false,
-                                isActive = false,
-                                isFree = false,
-                                trialEndDate = "2025-12-11",
-                                badge = "ফ্রিতে শেখা শেষ",
-                                phasePricing = 1800
                             ),
                             AcademicProgramItem(
                                 id = "hsc_ict_masterclass",
@@ -679,11 +762,36 @@ object SyllabusDatabaseManager {
                 }
             }
 
-            else -> AcademicProgramsCatalog(
+            "C12" -> {
+                if (params.group.contains("Science")) {
+                    AcademicProgramsCatalog(
+                        enrolledPrograms = listOf(AcademicProgramItem(id = "hsc12_sci_enrolled", title = "HSC বিজ্ঞান - ২য় বর্ষ ফাইনাল ও এডমিশন প্রি-প্রিপারেশন", type = "Paid", hasEnrolment = true, isActive = true, phasePricing = 3000)),
+                        freePrograms = listOf(AcademicProgramItem(id = "hsc12_sci_free", title = "HSC ২য় বর্ষ ফিজিক্স ও কেমিস্ট্রি সাজেশন", type = "Free", hasEnrolment = false, isActive = true, isFree = true, phasePricing = 0)),
+                        allCoursesPrograms = listOf(AcademicProgramItem(id = "hsc12_sci_all", title = "HSC ২য় বর্ষ টেস্ট পেপার সলভ - বিজ্ঞান", type = "Paid", hasEnrolment = false, isActive = true, trialEnabled = true, trialDuration = 3, phasePricing = 1800)),
+                        blacklistedPrograms = emptyList()
+                    )
+                } else if (params.group.contains("Business") || params.group.contains("ব্যবসায়")) {
+                    AcademicProgramsCatalog(
+                        enrolledPrograms = listOf(AcademicProgramItem(id = "hsc12_bus_enrolled", title = "HSC ব্যবসায় শিক্ষা - ২য় বর্ষ হিসাববিজ্ঞান ও ফিন্যান্স", type = "Paid", hasEnrolment = true, isActive = true, phasePricing = 2600)),
+                        freePrograms = listOf(AcademicProgramItem(id = "hsc12_bus_free", title = "HSC ব্যবসায় শিক্ষা শর্ট সাজেশন", type = "Free", hasEnrolment = false, isActive = true, isFree = true, phasePricing = 0)),
+                        allCoursesPrograms = listOf(AcademicProgramItem(id = "hsc12_bus_all", title = "HSC ২য় বর্ষ ফিন্যান্স ও ব্যাংকিং স্পেশাল", type = "Paid", hasEnrolment = false, isActive = true, trialEnabled = true, trialDuration = 3, phasePricing = 1500)),
+                        blacklistedPrograms = emptyList()
+                    )
+                } else {
+                    AcademicProgramsCatalog(
+                        enrolledPrograms = listOf(AcademicProgramItem(id = "hsc12_hum_enrolled", title = "HSC মানবিক - ২য় বর্ষ ফাইনাল প্রস্তুতি", type = "Paid", hasEnrolment = true, isActive = true, phasePricing = 2500)),
+                        freePrograms = listOf(AcademicProgramItem(id = "hsc12_hum_free", title = "HSC মানবিক ২য় বর্ষ মডেল টেস্ট", type = "Free", hasEnrolment = false, isActive = true, isFree = true, phasePricing = 0)),
+                        allCoursesPrograms = listOf(AcademicProgramItem(id = "hsc12_hum_all", title = "HSC পৌরনীতি, অর্থনীতি ও সমাজবিজ্ঞান ২য় পত্র", type = "Paid", hasEnrolment = false, isActive = true, trialEnabled = true, trialDuration = 3, phasePricing = 1400)),
+                        blacklistedPrograms = emptyList()
+                    )
+                }
+            }
+
+            "CAD" -> AcademicProgramsCatalog(
                 enrolledPrograms = listOf(
                     AcademicProgramItem(
                         id = "admission_enrolled_1",
-                        title = "বিশ্ববিদ্যালয় ভর্তি পরীক্ষা 'খ' ইউনিট পূর্ণাঙ্গ প্রস্তুতি",
+                        title = "বিশ্ববিদ্যালয় ভর্তি পরীক্ষা 'খ' ও 'গ' ইউনিট পূর্ণাঙ্গ প্রস্তুতি",
                         type = "Paid",
                         hasEnrolment = true,
                         isActive = true,
@@ -707,7 +815,7 @@ object SyllabusDatabaseManager {
                 allCoursesPrograms = listOf(
                     AcademicProgramItem(
                         id = "admission_all_1",
-                        title = "মেডিকেল ভর্তি প্রস্তুতি স্পেশাল মডেল টেস্ট",
+                        title = "মেডিকেল ও ইঞ্জিনিয়ারিং ভর্তি প্রস্তুতি স্পেশাল মডেল টেস্ট",
                         type = "Paid",
                         hasEnrolment = false,
                         isActive = true,
@@ -720,7 +828,55 @@ object SyllabusDatabaseManager {
                 ),
                 blacklistedPrograms = emptyList()
             )
+
+            else -> AcademicProgramsCatalog(
+                enrolledPrograms = listOf(
+                    AcademicProgramItem(
+                        id = "default_enrolled_1",
+                        title = "পূর্ণাঙ্গ একাডেমিক ও স্কলারশিপ প্রস্তুতি কোর্স",
+                        type = "Paid",
+                        hasEnrolment = true,
+                        isActive = true,
+                        isFree = false,
+                        badge = "ভর্তি হয়েছো",
+                        phasePricing = 2500
+                    )
+                ),
+                freePrograms = listOf(
+                    AcademicProgramItem(
+                        id = "default_free_1",
+                        title = "ফ্রি স্কলারশিপ ও মেধা অন্বেষণ কোর্স",
+                        type = "Free",
+                        hasEnrolment = false,
+                        isActive = true,
+                        isFree = true,
+                        badge = "সম্পূর্ণ ফ্রি!",
+                        phasePricing = 0
+                    )
+                ),
+                allCoursesPrograms = listOf(
+                    AcademicProgramItem(
+                        id = "default_all_1",
+                        title = "মাস্টারক্লাস ও স্পেশাল স্কিল ডেভেলপমেন্ট",
+                        type = "Paid",
+                        hasEnrolment = false,
+                        isActive = true,
+                        isFree = false,
+                        trialEnabled = true,
+                        trialDuration = 3,
+                        badge = "৩ দিন ফ্রিতে শেখো",
+                        phasePricing = 1500
+                    )
+                ),
+                blacklistedPrograms = emptyList()
+            )
         }
+        return catalog.copy(
+            enrolledPrograms = catalog.enrolledPrograms.map { it.copy(classTag = defaultTag) },
+            freePrograms = catalog.freePrograms.map { it.copy(classTag = defaultTag) },
+            allCoursesPrograms = catalog.allCoursesPrograms.map { it.copy(classTag = defaultTag) },
+            blacklistedPrograms = catalog.blacklistedPrograms
+        )
     }
 
     /**
@@ -730,6 +886,15 @@ object SyllabusDatabaseManager {
     fun getSubjectsForProfile(profile: UserProfile): List<SubjectItem> {
         val classCode = getClassCode(profile.studentClass)
         return when (classCode) {
+            "C05" -> listOf(
+                SubjectItem("sub_c05_bangla", "বাংলা (আমার বাংলা বই)", "বাং", 0xFFE11D48, 0xFFF43F5E, 20),
+                SubjectItem("sub_c05_english", "English For Today", "Eng", 0xFF2563EB, 0xFF3B82F6, 25),
+                SubjectItem("sub_c05_math", "প্রাথমিক গণিত", "গণি", 0xFF059669, 0xFF10B981, 35),
+                SubjectItem("sub_c05_science", "প্রাথমিক বিজ্ঞান", "বিজ্ঞা", 0xFF7C3AED, 0xFF8B5CF6, 20),
+                SubjectItem("sub_c05_bgs", "বাংলাদেশ ও বিশ্বপরিচয়", "বাওবি", 0xFFD97706, 0xFFF59E0B, 15),
+                SubjectItem("sub_c05_religion", "ধর্ম ও নৈতিক শিক্ষা", "ধর্ম", 0xFF4F46E5, 0xFF6366F1, 20)
+            )
+
             "C06" -> listOf(
                 SubjectItem("sub_c06_bangla", "বাংলা (সাহিত্য ও ব্যাকরণ)", "বাং", 0xFFE11D48, 0xFFF43F5E, 25),
                 SubjectItem("sub_c06_english", "ইংরেজি (English For Today)", "Eng", 0xFF2563EB, 0xFF3B82F6, 30),
@@ -762,20 +927,48 @@ object SyllabusDatabaseManager {
                 SubjectItem("sub_c08_religion", "ধর্ম শিক্ষা", "ধর্ম", 0xFF4F46E5, 0xFF6366F1, 28)
             )
 
-            "C09", "C10" -> listOf(
-                SubjectItem("sub_ssc_bangla", "বাংলা ১ম ও ২য় পত্র", "বাং", 0xFFE11D48, 0xFFF43F5E, 45),
-                SubjectItem("sub_ssc_english", "English 1st & 2nd Paper", "Eng", 0xFF2563EB, 0xFF3B82F6, 50),
-                SubjectItem("sub_ssc_math", "সাধারণ গণিত", "গণি", 0xFF059669, 0xFF10B981, 60),
-                SubjectItem("sub_ssc_hmath", "উচ্চতর গণিত", "উগণি", 0xFF0D9488, 0xFF14B8A6, 40),
-                SubjectItem("sub_ssc_physics", "পদার্থবিজ্ঞান", "পদ", 0xFF7C3AED, 0xFF8B5CF6, 38),
-                SubjectItem("sub_ssc_chemistry", "রসায়ন", "রস", 0xFFD97706, 0xFFF59E0B, 42),
-                SubjectItem("sub_ssc_biology", "জীববিজ্ঞান", "জীব", 0xFF059669, 0xFF34D399, 35),
-                SubjectItem("sub_ssc_bgs", "বাংলাদেশ ও বিশ্বপরিচয়", "বাওবি", 0xFFBE185D, 0xFFEC4899, 25),
-                SubjectItem("sub_ssc_ict", "তথ্য ও যোগাযোগ প্রযুক্তি (ICT)", "ICT", 0xFF0284C7, 0xFF0EA5E9, 55)
-            )
+            "C09", "C10" -> {
+                if (profile.group.contains("বিজ্ঞান") || profile.group.contains("Science")) {
+                    listOf(
+                        SubjectItem("sub_ssc_bangla", "বাংলা ১ম ও ২য় পত্র", "বাং", 0xFFE11D48, 0xFFF43F5E, 45),
+                        SubjectItem("sub_ssc_english", "English 1st & 2nd Paper", "Eng", 0xFF2563EB, 0xFF3B82F6, 50),
+                        SubjectItem("sub_ssc_math", "সাধারণ গণিত", "গণি", 0xFF059669, 0xFF10B981, 60),
+                        SubjectItem("sub_ssc_hmath", "উচ্চতর গণিত", "উগণি", 0xFF0D9488, 0xFF14B8A6, 40),
+                        SubjectItem("sub_ssc_physics", "পদার্থবিজ্ঞান", "পদ", 0xFF7C3AED, 0xFF8B5CF6, 38),
+                        SubjectItem("sub_ssc_chemistry", "রসায়ন", "রস", 0xFFD97706, 0xFFF59E0B, 42),
+                        SubjectItem("sub_ssc_biology", "জীববিজ্ঞান", "জীব", 0xFF059669, 0xFF34D399, 35),
+                        SubjectItem("sub_ssc_bgs", "বাংলাদেশ ও বিশ্বপরিচয়", "বাওবি", 0xFFBE185D, 0xFFEC4899, 25),
+                        SubjectItem("sub_ssc_ict", "তথ্য ও যোগাযোগ প্রযুক্তি (ICT)", "ICT", 0xFF0284C7, 0xFF0EA5E9, 55)
+                    )
+                } else if (profile.group.contains("ব্যবসায়") || profile.group.contains("Business")) {
+                    listOf(
+                        SubjectItem("sub_ssc_bus_ban", "বাংলা ১ম ও ২য় পত্র", "বাং", 0xFFE11D48, 0xFFF43F5E, 40),
+                        SubjectItem("sub_ssc_bus_eng", "English 1st & 2nd Paper", "Eng", 0xFF2563EB, 0xFF3B82F6, 45),
+                        SubjectItem("sub_ssc_bus_math", "সাধারণ গণিত", "গণি", 0xFF059669, 0xFF10B981, 50),
+                        SubjectItem("sub_ssc_bus_acc", "হিসাববিজ্ঞান", "হিসা", 0xFF0D9488, 0xFF14B8A6, 45),
+                        SubjectItem("sub_ssc_bus_fin", "ফিন্যান্স ও ব্যাংকিং", "ফিন্যা", 0xFFD97706, 0xFFF59E0B, 35),
+                        SubjectItem("sub_ssc_bus_ent", "ব্যবসায় উদ্যোগ", "ব্যব", 0xFF7C3AED, 0xFF8B5CF6, 30),
+                        SubjectItem("sub_ssc_bus_sci", "সাধারণ বিজ্ঞান", "বিজ্ঞা", 0xFF059669, 0xFF34D399, 25),
+                        SubjectItem("sub_ssc_bus_bgs", "বাংলাদেশ ও বিশ্বপরিচয়", "বাওবি", 0xFFBE185D, 0xFFEC4899, 20),
+                        SubjectItem("sub_ssc_bus_ict", "তথ্য ও যোগাযোগ প্রযুক্তি (ICT)", "ICT", 0xFF0284C7, 0xFF0EA5E9, 50)
+                    )
+                } else {
+                    listOf(
+                        SubjectItem("sub_ssc_hum_ban", "বাংলা ১ম ও ২য় পত্র", "বাং", 0xFFE11D48, 0xFFF43F5E, 40),
+                        SubjectItem("sub_ssc_hum_eng", "English 1st & 2nd Paper", "Eng", 0xFF2563EB, 0xFF3B82F6, 45),
+                        SubjectItem("sub_ssc_hum_math", "সাধারণ গণিত", "গণি", 0xFF059669, 0xFF10B981, 50),
+                        SubjectItem("sub_ssc_hum_his", "বাংলাদেশের ইতিহাস ও বিশ্বসভ্যতা", "ইতি", 0xFFD97706, 0xFFF59E0B, 35),
+                        SubjectItem("sub_ssc_hum_geo", "ভূগোল ও পরিবেশ", "ভূগোল", 0xFF0D9488, 0xFF14B8A6, 30),
+                        SubjectItem("sub_ssc_hum_civ", "পৌরনীতি ও নাগরিকতা", "পৌর", 0xFF7C3AED, 0xFF8B5CF6, 30),
+                        SubjectItem("sub_ssc_hum_eco", "অর্থনীতি", "অর্থ", 0xFFBE185D, 0xFFEC4899, 25),
+                        SubjectItem("sub_ssc_hum_sci", "সাধারণ বিজ্ঞান", "বিজ্ঞা", 0xFF059669, 0xFF34D399, 25),
+                        SubjectItem("sub_ssc_hum_ict", "তথ্য ও যোগাযোগ প্রযুক্তি (ICT)", "ICT", 0xFF0284C7, 0xFF0EA5E9, 50)
+                    )
+                }
+            }
 
-            "C11" -> {
-                if (profile.group.contains("বিজ্ঞান")) {
+            "C11", "C12" -> {
+                if (profile.group.contains("বিজ্ঞান") || profile.group.contains("Science")) {
                     listOf(
                         SubjectItem("sub_hsc_phy", "পদার্থবিজ্ঞান ১ম ও ২য় পত্র", "পদ", 0xFF7C3AED, 0xFF8B5CF6, 30),
                         SubjectItem("sub_hsc_chem", "রসায়ন ১ম ও ২য় পত্র", "রস", 0xFFD97706, 0xFFF59E0B, 28),
@@ -785,7 +978,7 @@ object SyllabusDatabaseManager {
                         SubjectItem("sub_hsc_ban", "বাংলা ১ম ও ২য় পত্র", "বাং", 0xFFE11D48, 0xFFF43F5E, 20),
                         SubjectItem("sub_hsc_eng", "English 1st & 2nd Paper", "Eng", 0xFF2563EB, 0xFF3B82F6, 25)
                     )
-                } else if (profile.group.contains("ব্যবসায়")) {
+                } else if (profile.group.contains("ব্যবসায়") || profile.group.contains("Business")) {
                     listOf(
                         SubjectItem("sub_hsc_acc", "হিসাববিজ্ঞান ১ম ও ২য় পত্র", "হিসা", 0xFF059669, 0xFF10B981, 30),
                         SubjectItem("sub_hsc_fin", "ফিন্যান্স, ব্যাংকিং ও বীমা", "ফিন্যা", 0xFFD97706, 0xFFF59E0B, 25),

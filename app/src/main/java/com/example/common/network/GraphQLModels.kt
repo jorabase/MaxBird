@@ -163,7 +163,7 @@ data class AcademicProgramItem(
     val trialDuration: Int = 3,
     val badge: String = "",
     val programTag: String = "ACADEMIC PROGRAM",
-    val classTag: String = "HSC 27 • Humanities",
+    val classTag: String = "",
     val bannerUrl: String? = null,
     val colorPrimaryHex: Long = 0xFF0B1440,
     val colorSecondaryHex: Long = 0xFF1E3A8A,

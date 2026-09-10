@@ -17,6 +17,19 @@ class MainActivity : ComponentActivity() {
   override fun onCreate(savedInstanceState: Bundle?) {
     super.onCreate(savedInstanceState)
     com.example.common.network.UserSessionManager.init(applicationContext)
+    val db = com.example.common.data.local.AppDatabase.getInstance(applicationContext)
+    val networkSource = com.example.common.data.remote.AcademicNetworkDataSource()
+    com.example.common.repository.AcademicRepository.getInstance(
+        networkDataSource = networkSource,
+        profileDao = db.userAcademicProfileDao(),
+        configDao = db.cachedAcademicConfigDao()
+    )
+    val courseApi = com.example.common.data.remote.CourseApiClientFactory.createService()
+    com.example.common.repository.CourseRepositoryImpl.getInstance(
+        apiService = courseApi,
+        cachedMyCoursesDao = db.cachedMyCoursesDao(),
+        profileDao = db.userAcademicProfileDao()
+    )
     enableEdgeToEdge()
     setContent {
       MyApplicationTheme {

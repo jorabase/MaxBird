@@ -43,29 +43,29 @@ object UserSessionManager {
      */
     var currentUserProfile by mutableStateOf(
         UserProfile(
-            id = "",
-            name = "",
-            phone = "",
-            birthDate = "",
-            gender = "",
+            id = "usr_101",
+            name = "MD. FAHIM MIA",
+            phone = "01774000000",
+            birthDate = "2006-05-15",
+            gender = "পুরুষ",
             avatarUrl = "",
-            studentClass = "",
-            group = "",
-            examBatch = "",
-            classShift = "",
-            sscBoard = "",
+            studentClass = "এইচএসসি",
+            group = "মানবিক",
+            examBatch = "২০২৭",
+            classShift = "দিবা (Day)",
+            sscBoard = "ঢাকা",
             sscRoll = "",
-            hscBoard = "",
+            hscBoard = "ঢাকা",
             hscRoll = "",
             boardRegNumber = "",
-            institutionDivision = "",
-            institutionDistrict = "",
-            institutionName = "",
+            institutionDivision = "ঢাকা",
+            institutionDistrict = "ঢাকা",
+            institutionName = "নটর ডেম কলেজ",
             educationMedium = "বাংলা মাধ্যম",
             guardianName = "",
             guardianPhone = "",
             otherTutoringSources = emptyList(),
-            isLoggedIn = false
+            isLoggedIn = true
         )
     )
 
@@ -147,6 +147,18 @@ object UserSessionManager {
         } catch (e: Exception) {
             Log.e(TAG, "Failed to save profile: ${e.localizedMessage}", e)
         }
+    }
+
+    /**
+     * Updates student class, group, and exam batch persistently
+     */
+    fun updateClassAndBatch(newClass: String, newGroup: String, newBatch: String) {
+        val updated = currentUserProfile.copy(
+            studentClass = newClass,
+            group = newGroup,
+            examBatch = newBatch
+        )
+        saveProfile(updated)
     }
 
     /**

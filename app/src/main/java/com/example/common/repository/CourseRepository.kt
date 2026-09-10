@@ -10,7 +10,7 @@ import com.example.common.network.GraphQLCourseService
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.flow
 
-interface CourseRepository {
+interface ChapterRepository {
     fun getChapters(
         programId: String = GraphQLCourseService.DEFAULT_PROGRAM_ID,
         phaseId: String = GraphQLCourseService.DEFAULT_PHASE_ID,
@@ -35,9 +35,9 @@ interface CourseRepository {
     ): Flow<CourseContentUiState<AcademicProgramsCatalog>>
 }
 
-class CourseRepositoryImpl(
+class ChapterRepositoryImpl(
     private val service: GraphQLCourseService = GraphQLCourseService()
-) : CourseRepository {
+) : ChapterRepository {
 
     override fun getChapters(
         programId: String,
@@ -95,6 +95,6 @@ class CourseRepositoryImpl(
     }
 
     companion object {
-        val shared: CourseRepository by lazy { CourseRepositoryImpl() }
+        val shared: ChapterRepository by lazy { ChapterRepositoryImpl() }
     }
 }

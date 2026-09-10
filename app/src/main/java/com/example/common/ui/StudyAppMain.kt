@@ -37,19 +37,26 @@ import com.example.common.ui.screens.ExploreScreen
 import com.example.common.ui.screens.HomeScreen
 import com.example.common.ui.screens.LecturePlayerScreen
 import com.example.common.ui.screens.LoginScreen
+import com.example.common.ui.screens.MyCoursesScreen
 import com.example.common.ui.screens.ProfileEditScreen
 import com.example.common.ui.screens.ProfileScreen
 import com.example.common.ui.screens.QuarterDetailScreen
 import com.example.common.ui.screens.ShikhoAiScreen
 import com.example.common.ui.screens.SubjectDetailScreen
 import com.example.common.ui.screens.SyllabusChangeScreen
+import com.example.common.ui.screens.SyllabusSelectionScreen
+import com.example.common.ui.screens.SyllabusSummaryScreen
+import com.example.common.viewmodel.MyCoursesViewModel
+import com.example.common.viewmodel.SyllabusViewModel
 
 /**
  * Screen navigation states representing root tabs and detail screens:
  * - MainTabs (Bottom nav active)
  * - ProfileSettings (Accessible from AI top bar or Home header avatar)
  * - EditProfile (Step 1-3 Personal, Institutional, Guardian profile editing)
- * - SyllabusChange (Overview card and Class/Batch/Group syllabus switcher)
+ * - SyllabusChange / SyllabusSummary (Overview card and Class/Batch/Group profile)
+ * - SyllabusSelection (Dynamic reactive Class -> Batch -> Group selection flow)
+ * - MyCourses (Dynamic reactive course feed bound to syllabus)
  * - AdmissionInfo (User requested enrolled course list matching Screenshots 1-4)
  * - Login (KMP Auth Login screen with Ktor API service)
  * - QuarterDetail, SubjectDetail, ChapterDetail, LecturePlayer
@@ -59,6 +66,9 @@ sealed interface ActiveScreenState {
     data object ProfileSettings : ActiveScreenState
     data object EditProfile : ActiveScreenState
     data object SyllabusChange : ActiveScreenState
+    data object SyllabusSummary : ActiveScreenState
+    data object SyllabusSelection : ActiveScreenState
+    data object MyCourses : ActiveScreenState
     data object AdmissionInfo : ActiveScreenState
     data object Login : ActiveScreenState
     data class QuarterDetail(val courseTitle: String) : ActiveScreenState
@@ -99,6 +109,28 @@ fun StudyAppMain(
             }
         )
         return
+    }
+
+    val syllabusViewModel: SyllabusViewModel = remember {
+        val db = com.example.common.data.local.AppDatabase.getInstance(context)
+        val networkSource = com.example.common.data.remote.AcademicNetworkDataSource()
+        val repo = com.example.common.repository.AcademicRepository.getInstance(
+            networkDataSource = networkSource,
+            profileDao = db.userAcademicProfileDao(),
+            configDao = db.cachedAcademicConfigDao()
+        )
+        SyllabusViewModel(repo)
+    }
+
+    val myCoursesViewModel: MyCoursesViewModel = remember {
+        val db = com.example.common.data.local.AppDatabase.getInstance(context)
+        val apiService = com.example.common.data.remote.CourseApiClientFactory.createService()
+        val repo = com.example.common.repository.CourseRepositoryImpl.getInstance(
+            apiService = apiService,
+            cachedMyCoursesDao = db.cachedMyCoursesDao(),
+            profileDao = db.userAcademicProfileDao()
+        )
+        MyCoursesViewModel(repo)
     }
 
     var currentDestination by rememberSaveable { mutableStateOf(StudyDestination.HOME) }
@@ -144,6 +176,8 @@ fun StudyAppMain(
                     RenderScreen(
                         currentScreen = currentScreen,
                         currentDestination = currentDestination,
+                        syllabusViewModel = syllabusViewModel,
+                        myCoursesViewModel = myCoursesViewModel,
                         onNavigate = { newScreen -> screenBackstack = screenBackstack + newScreen },
                         onNavigateBack = navigateBack
                     )
@@ -160,6 +194,8 @@ fun StudyAppMain(
                     RenderScreen(
                         currentScreen = currentScreen,
                         currentDestination = currentDestination,
+                        syllabusViewModel = syllabusViewModel,
+                        myCoursesViewModel = myCoursesViewModel,
                         onNavigate = { newScreen -> screenBackstack = screenBackstack + newScreen },
                         onNavigateBack = navigateBack
                     )
@@ -182,6 +218,8 @@ fun StudyAppMain(
 private fun RenderScreen(
     currentScreen: ActiveScreenState,
     currentDestination: StudyDestination,
+    syllabusViewModel: SyllabusViewModel,
+    myCoursesViewModel: MyCoursesViewModel,
     onNavigate: (ActiveScreenState) -> Unit,
     onNavigateBack: () -> Unit
 ) {
@@ -238,9 +276,22 @@ private fun RenderScreen(
                             }
                         )
 
-                        StudyDestination.COURSES -> CoursesScreen(
-                            onCourseClick = { courseTitle ->
-                                onNavigate(ActiveScreenState.QuarterDetail(courseTitle))
+                        StudyDestination.COURSES -> MyCoursesScreen(
+                            viewModel = myCoursesViewModel,
+                            onCourseClick = { courseId ->
+                                onNavigate(ActiveScreenState.QuarterDetail("কোর্স বিস্তারিত"))
+                            },
+                            onContinueLearning = { courseId ->
+                                onNavigate(ActiveScreenState.ChapterList())
+                            },
+                            onViewDetails = { courseId ->
+                                onNavigate(ActiveScreenState.AdmissionInfo)
+                            },
+                            onEnrollCourse = { courseId ->
+                                onNavigate(ActiveScreenState.AdmissionInfo)
+                            },
+                            onChangeSyllabusClick = {
+                                onNavigate(ActiveScreenState.SyllabusSelection)
                             },
                             onBackClick = onNavigateBack
                         )
@@ -299,11 +350,44 @@ private fun RenderScreen(
                 )
             }
 
-            // User requested Syllabus Change Flow (Screenshots 1 - 3: Class, Batch, Group switcher)
-            is ActiveScreenState.SyllabusChange -> {
-                SyllabusChangeScreen(
+            // Academic Syllabus Summary View & Selection Flow
+            is ActiveScreenState.SyllabusChange, is ActiveScreenState.SyllabusSummary -> {
+                SyllabusSummaryScreen(
+                    viewModel = syllabusViewModel,
                     onBackClick = onNavigateBack,
-                    onSyllabusUpdated = onNavigateBack
+                    onEditClick = {
+                        onNavigate(ActiveScreenState.SyllabusSelection)
+                    }
+                )
+            }
+
+            is ActiveScreenState.SyllabusSelection -> {
+                SyllabusSelectionScreen(
+                    viewModel = syllabusViewModel,
+                    onBackClick = onNavigateBack,
+                    onSubmitSuccess = onNavigateBack
+                )
+            }
+
+            is ActiveScreenState.MyCourses -> {
+                MyCoursesScreen(
+                    viewModel = myCoursesViewModel,
+                    onCourseClick = { courseId ->
+                        onNavigate(ActiveScreenState.QuarterDetail("কোর্স বিস্তারিত"))
+                    },
+                    onContinueLearning = { courseId ->
+                        onNavigate(ActiveScreenState.ChapterList())
+                    },
+                    onViewDetails = { courseId ->
+                        onNavigate(ActiveScreenState.AdmissionInfo)
+                    },
+                    onEnrollCourse = { courseId ->
+                        onNavigate(ActiveScreenState.AdmissionInfo)
+                    },
+                    onChangeSyllabusClick = {
+                        onNavigate(ActiveScreenState.SyllabusSelection)
+                    },
+                    onBackClick = onNavigateBack
                 )
             }
 

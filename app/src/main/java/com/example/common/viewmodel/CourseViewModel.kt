@@ -12,15 +12,17 @@ import com.example.common.network.GqlLessonItem
 import com.example.common.network.GqlResourceAttachment
 import com.example.common.network.GraphQLCourseService
 import com.example.common.network.UserSessionManager
-import com.example.common.repository.CourseRepository
-import com.example.common.repository.CourseRepositoryImpl
+import com.example.common.repository.ChapterRepository
+import com.example.common.repository.ChapterRepositoryImpl
+import com.example.common.model.AppGlobalEvent
+import com.example.common.repository.AcademicRepository
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.launch
 
 class CourseViewModel(
-    private val repository: CourseRepository = CourseRepositoryImpl.shared
+    private val repository: ChapterRepository = ChapterRepositoryImpl.shared
 ) : ViewModel() {
 
     private val _chaptersState = MutableStateFlow<CourseContentUiState<List<GqlChapterItem>>>(CourseContentUiState.Loading)
@@ -41,25 +43,33 @@ class CourseViewModel(
         fun currentFilterParamsFromProfile(): AcademicProgramFilterParams {
             val profile = UserSessionManager.currentUserProfile
             val classCode = when {
-                profile.studentClass.contains("এইচএসসি") || profile.studentClass.contains("HSC") -> "C11"
-                profile.studentClass.contains("১০") || profile.studentClass.contains("10") -> "C10"
+                profile.studentClass.contains("১২") || profile.studentClass.contains("12") || profile.studentClass.contains("২য় বর্ষ") || profile.studentClass.contains("2nd") -> "C12"
+                profile.studentClass.contains("১১") || profile.studentClass.contains("11") || profile.studentClass.contains("এইচএসসি") || profile.studentClass.contains("HSC") || profile.studentClass.contains("১ম বর্ষ") || profile.studentClass.contains("1st") -> "C11"
+                profile.studentClass.contains("১০") || profile.studentClass.contains("10") || profile.studentClass.contains("এসএসসি") || profile.studentClass.contains("SSC") -> "C10"
                 profile.studentClass.contains("৯") || profile.studentClass.contains("9") -> "C09"
                 profile.studentClass.contains("৮") || profile.studentClass.contains("8") -> "C08"
                 profile.studentClass.contains("৭") || profile.studentClass.contains("7") -> "C07"
                 profile.studentClass.contains("৬") || profile.studentClass.contains("6") -> "C06"
                 profile.studentClass.contains("৫") || profile.studentClass.contains("5") -> "C05"
-                profile.studentClass.contains("এডমিশন") -> "CAD"
+                profile.studentClass.contains("এডমিশন") || profile.studentClass.contains("ভর্তি") || profile.studentClass.contains("Admission") -> "CAD"
                 else -> "C11"
             }
             val groupName = when {
-                profile.group.contains("মানবিক") -> "Humanities"
-                profile.group.contains("বিজ্ঞান") -> "Science"
-                profile.group.contains("ব্যবসায়") -> "BusinessStudies"
+                profile.group.contains("মানবিক") || profile.group.contains("Humanities") -> "Humanities"
+                profile.group.contains("বিজ্ঞান") || profile.group.contains("Science") -> "Science"
+                profile.group.contains("ব্যবসায়") || profile.group.contains("Business") -> "BusinessStudies"
                 else -> "General"
             }
             val rawDigits = profile.examBatch.filter { it.isDigit() }
             val batchYear = if (rawDigits.isNotEmpty()) rawDigits else "2027"
-            val batchId = if (classCode == "C11") "HSC $batchYear" else "${profile.studentClass} $batchYear"
+            val batchId = when (classCode) {
+                "C11" -> "HSC $batchYear"
+                "C12" -> "HSC 2nd Year $batchYear"
+                "C10" -> "SSC $batchYear"
+                "C09" -> "Class 9 $batchYear"
+                "CAD" -> "Admission $batchYear"
+                else -> "${profile.studentClass} $batchYear"
+            }
             return AcademicProgramFilterParams(
                 batchId = batchId,
                 className = classCode,
@@ -72,6 +82,24 @@ class CourseViewModel(
     init {
         loadChapters()
         loadAcademicPrograms(currentFilterParamsFromProfile())
+        listenToGlobalSyllabusEvents()
+    }
+
+    private fun listenToGlobalSyllabusEvents() {
+        viewModelScope.launch {
+            AcademicRepository.getSharedInstance()?.appEvents?.collect { event ->
+                if (event is AppGlobalEvent.SyllabusChanged) {
+                    // Evict caches and trigger fresh network fetches
+                    _chaptersState.value = CourseContentUiState.Loading
+                    _lessonsState.value = CourseContentUiState.Loading
+                    _attachmentsState.value = CourseContentUiState.Loading
+                    _academicProgramsState.value = CourseContentUiState.Loading
+
+                    loadChapters()
+                    loadAcademicPrograms(currentFilterParamsFromProfile())
+                }
+            }
+        }
     }
 
     /**

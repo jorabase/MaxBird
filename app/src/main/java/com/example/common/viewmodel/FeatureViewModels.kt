@@ -29,7 +29,7 @@ sealed interface SyllabusSyncUiState {
     data class Error(val message: String) : SyllabusSyncUiState
 }
 
-class SyllabusViewModel : ViewModel() {
+class LegacySyllabusSyncViewModel : ViewModel() {
     private val _syncState = MutableStateFlow<SyllabusSyncUiState>(SyllabusSyncUiState.Idle)
     val syncState: StateFlow<SyllabusSyncUiState> = _syncState.asStateFlow()
 

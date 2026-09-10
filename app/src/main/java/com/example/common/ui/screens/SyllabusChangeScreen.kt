@@ -73,8 +73,8 @@ import com.example.common.model.UserProfile
 import com.example.common.network.BatchOption
 import com.example.common.network.UserSessionManager
 import com.example.common.ui.components.ProfileSyncStatusCard
+import com.example.common.viewmodel.LegacySyllabusSyncViewModel
 import com.example.common.viewmodel.SyllabusSyncUiState
-import com.example.common.viewmodel.SyllabusViewModel
 import kotlinx.coroutines.launch
 
 private fun toBengaliDigits(input: String): String {
@@ -136,7 +136,7 @@ private fun mapClassToCode(label: String): String = when {
 fun SyllabusChangeScreen(
     onBackClick: () -> Unit,
     onSyllabusUpdated: () -> Unit,
-    viewModel: SyllabusViewModel = remember { SyllabusViewModel() },
+    viewModel: LegacySyllabusSyncViewModel = remember { LegacySyllabusSyncViewModel() },
     modifier: Modifier = Modifier
 ) {
     var isEditing by remember { mutableStateOf(false) }
@@ -144,6 +144,7 @@ fun SyllabusChangeScreen(
     val syncState by viewModel.syncState.collectAsStateWithLifecycle()
     val isSyncing = syncState is SyllabusSyncUiState.Loading
     val serverBatchOptions by viewModel.batchOptionsState.collectAsStateWithLifecycle()
+    val classesFromApi by viewModel.classesState.collectAsStateWithLifecycle()
 
     // Initial state from current profile
     val currentProfile = UserSessionManager.currentUserProfile
@@ -160,6 +161,7 @@ fun SyllabusChangeScreen(
 
     androidx.compose.runtime.LaunchedEffect(isEditing) {
         if (isEditing) {
+            viewModel.loadClassList()
             viewModel.loadBatchOptions(mapClassToCode(selectedClass))
         }
     }
@@ -226,12 +228,13 @@ fun SyllabusChangeScreen(
                     onStartChange = { isEditing = true }
                 )
             } else {
-                // SCREENSHOTS 2 & 3: Interactive Class, Batch, and Group Selector
+                // SCREENSHOTS 2 & 3: Interactive Class, Batch, and Group Selector (Real Database / API)
                 SyllabusSelectorView(
+                    classesFromApi = classesFromApi,
                     selectedClass = selectedClass,
-                    onClassSelected = {
-                        selectedClass = it
-                        viewModel.loadBatchOptions(mapClassToCode(it))
+                    onClassSelected = { label, code ->
+                        selectedClass = label
+                        viewModel.loadBatchOptions(code)
                     },
                     selectedBatch = selectedBatch,
                     onBatchSelected = { selectedBatch = it },
@@ -246,7 +249,7 @@ fun SyllabusChangeScreen(
                             selectedGroup = selectedGroup,
                             onSuccess = {
                                 scope.launch {
-                                    snackbarHostState.showSnackbar("সিলেবাস এবং কোর্স ফেজ সফলভাবে সিঙ্ক করা হয়েছে!")
+                                    snackbarHostState.showSnackbar("সিলেবাস এবং কোর্স ফেজ সফলভাবে ডাটাবেজ থেকে সিঙ্ক করা হয়েছে!")
                                 }
                                 isEditing = false
                                 onSyllabusUpdated()
@@ -331,11 +334,16 @@ private fun SyllabusOverviewView(
                     )
 
                     // Item 3: পরীক্ষার ধরন
+                    val examTypeDisplay = when {
+                        profile.studentClass.contains("এইচএসসি") || profile.studentClass.contains("HSC") || profile.studentClass.contains("11") || profile.studentClass.contains("12") -> "এইচএসসি পরীক্ষা"
+                        profile.studentClass.contains("এডমিশন") -> "বিশ্ববিদ্যালয় ভর্তি পরীক্ষা"
+                        else -> "এসএসসি ও বার্ষিক পরীক্ষা"
+                    }
                     SyllabusDetailItem(
                         iconEmoji = "📝",
                         iconBg = Color(0xFFFEF9C3),
                         title = "পরীক্ষার ধরন",
-                        value = formatClassDisplay(profile.studentClass)
+                        value = examTypeDisplay
                     )
 
                     // Item 4: পরীক্ষার সাল
@@ -430,8 +438,9 @@ private fun SyllabusOverviewView(
 @OptIn(ExperimentalLayoutApi::class)
 @Composable
 private fun SyllabusSelectorView(
+    classesFromApi: List<com.example.common.network.ShikhoClassItem>,
     selectedClass: String,
-    onClassSelected: (String) -> Unit,
+    onClassSelected: (String, String) -> Unit,
     selectedBatch: String,
     onBatchSelected: (String) -> Unit,
     selectedGroup: String,
@@ -440,42 +449,15 @@ private fun SyllabusSelectorView(
     isSyncing: Boolean = false,
     onConfirm: () -> Unit
 ) {
-    val classOptions = listOf(
-        Pair("৫", "ক্লাস ৫"),
-        Pair("৬", "ক্লাস ৬"),
-        Pair("৭", "ক্লাস ৭"),
-        Pair("৮", "ক্লাস ৮"),
-        Pair("৯", "ক্লাস ৯"),
-        Pair("১০", "ক্লাস ১০"),
-        Pair("HSC", "এইচএসসি"),
-        Pair("🎓", "এডমিশন")
-    )
+    val availableBatches = serverBatchOptions.map { toBengaliDigits(it.year.toString()) }
 
-    // ধাপ ৩: ক্যাসকেডিং ডিপেন্ডেন্সি অনুযায়ী ডায়নামিক ব্যাচ তালিকা
-    val availableBatches = if (serverBatchOptions.isNotEmpty()) {
-        serverBatchOptions.map { toBengaliDigits(it.year.toString()) }
-    } else {
-        when {
-            selectedClass.contains("৫") -> listOf("২০৩০", "২০৩১", "২০৩২")
-            selectedClass.contains("৬") -> listOf("২০২৯", "২০৩০", "২০৩১")
-            selectedClass.contains("৭") -> listOf("২০২৮", "২০২৯", "২০৩০")
-            selectedClass.contains("৮") -> listOf("২০২৭", "২০২৮", "২০২৯")
-            selectedClass.contains("৯") -> listOf("২০২৬", "২০২৭", "২০২৮")
-            selectedClass.contains("১০") -> listOf("২০২৬", "২০২৭")
-            selectedClass.contains("এইচএসসি") -> listOf("২০২৭", "২০২৮")
-            selectedClass.contains("এডমিশন") -> listOf("২০২৫", "২০২৬")
-            else -> listOf("২০২৭", "২০২৮")
-        }
-    }
-
-    // ক্লাস ৫ থেকে ৮ পর্যন্ত কোনো বিভাগ (গ্রুপ) থাকে না
-    val hasGroups = when {
+    val selectedClassItem = classesFromApi.firstOrNull { it.nameBn == selectedClass || it.code == selectedClass }
+    val hasGroups = selectedClassItem?.isGroupRequired ?: !(
         selectedClass.contains("৫") ||
         selectedClass.contains("৬") ||
         selectedClass.contains("৭") ||
-        selectedClass.contains("৮") -> false
-        else -> true
-    }
+        selectedClass.contains("৮")
+    )
 
     val groupOptions = when {
         selectedClass.contains("এডমিশন") -> listOf(
@@ -531,7 +513,7 @@ private fun SyllabusSelectorView(
                             )
                             Spacer(modifier = Modifier.width(10.dp))
                             Text(
-                                text = "সিলেবাস সিঙ্ক হচ্ছে...",
+                                text = "ডাটাবেজ থেকে সিলেবাস সিঙ্ক হচ্ছে...",
                                 fontSize = 16.sp,
                                 fontWeight = FontWeight.Bold,
                                 color = Color.White
@@ -577,7 +559,7 @@ private fun SyllabusSelectorView(
                                 .background(Color(0xFF16A34A), CircleShape)
                         )
                         Text(
-                            text = "GET /class_list?vendor=BD • ক্যাসকেডিং ডিপেন্ডেন্সি সক্রিয়",
+                            text = "GET /class_list?vendor=BD • ১০০% রিয়েল ডাটাবেজ কানেকশন",
                             fontSize = 11.sp,
                             fontWeight = FontWeight.Medium,
                             color = Color(0xFF15803D)
@@ -595,42 +577,55 @@ private fun SyllabusSelectorView(
                 )
                 Spacer(modifier = Modifier.height(14.dp))
 
-                // Flow layout / Grid of Class Pills
+                // Flow layout / Grid of Class Pills from Real Database / API
                 FlowRow(
                     horizontalArrangement = Arrangement.spacedBy(10.dp),
                     verticalArrangement = Arrangement.spacedBy(12.dp),
                     modifier = Modifier.fillMaxWidth()
                 ) {
-                    classOptions.forEach { (badge, label) ->
-                        val isSelected = selectedClass == label
-                        ClassPillItem(
-                            badge = badge,
-                            label = label,
-                            isSelected = isSelected,
-                            onClick = {
-                                onClassSelected(label)
-                                val newBatches = when {
-                                    label.contains("৫") -> listOf("২০৩০", "২০৩১", "২০৩২")
-                                    label.contains("৬") -> listOf("২০২৯", "২০৩০", "২০৩১")
-                                    label.contains("৭") -> listOf("২০২৮", "২০২৯", "২০৩০")
-                                    label.contains("৮") -> listOf("২০২৭", "২০২৮", "২০২৯")
-                                    label.contains("৯") -> listOf("২০২৬", "২০২৭", "২০২৮")
-                                    label.contains("১০") -> listOf("২০২৬", "২০২৭")
-                                    label.contains("এইচএসসি") -> listOf("২০২৭", "২০২৮")
-                                    label.contains("এডমিশন") -> listOf("২০২৫", "২০২৬")
-                                    else -> listOf("২০২৭", "২০২৮")
-                                }
-                                if (!newBatches.contains(selectedBatch)) {
-                                    onBatchSelected(newBatches.first())
-                                }
-                                val newHasGroups = !(label.contains("৫") || label.contains("৬") || label.contains("৭") || label.contains("৮"))
-                                if (!newHasGroups) {
-                                    onGroupSelected("সাধারণ")
-                                } else if (selectedGroup == "সাধারণ" || selectedGroup.isEmpty()) {
-                                    onGroupSelected(if (label.contains("এডমিশন")) "'খ' ইউনিট (মানবিক)" else "মানবিক")
-                                }
+                    if (classesFromApi.isEmpty()) {
+                        Surface(
+                            shape = RoundedCornerShape(12.dp),
+                            color = Color(0xFFEFF6FF),
+                            modifier = Modifier.fillMaxWidth()
+                        ) {
+                            Row(
+                                modifier = Modifier.padding(16.dp),
+                                verticalAlignment = Alignment.CenterVertically,
+                                horizontalArrangement = Arrangement.spacedBy(12.dp)
+                            ) {
+                                androidx.compose.material3.CircularProgressIndicator(
+                                    modifier = Modifier.size(20.dp),
+                                    strokeWidth = 2.dp,
+                                    color = Color(0xFF1D4ED8)
+                                )
+                                Text(
+                                    text = "ডাটাবেজ থেকে ক্লাস তালিকা লোড হচ্ছে...",
+                                    fontSize = 14.sp,
+                                    color = Color(0xFF1E40AF),
+                                    fontWeight = FontWeight.Medium
+                                )
                             }
-                        )
+                        }
+                    } else {
+                        classesFromApi.forEach { classItem ->
+                            val label = classItem.nameBn.ifBlank { classItem.nameEn }
+                            val isSelected = selectedClass == label || selectedClass == classItem.code
+                            ClassPillItem(
+                                badge = classItem.code,
+                                label = label,
+                                isSelected = isSelected,
+                                onClick = {
+                                    onClassSelected(label, classItem.code)
+                                    val newHasGroups = classItem.isGroupRequired
+                                    if (!newHasGroups) {
+                                        onGroupSelected("সাধারণ")
+                                    } else if (selectedGroup == "সাধারণ" || selectedGroup.isEmpty()) {
+                                        onGroupSelected("মানবিক")
+                                    }
+                                }
+                            )
+                        }
                     }
                 }
             }
@@ -649,18 +644,34 @@ private fun SyllabusSelectorView(
 
                 Spacer(modifier = Modifier.height(12.dp))
 
-                Row(
-                    horizontalArrangement = Arrangement.spacedBy(10.dp),
-                    modifier = Modifier.fillMaxWidth()
-                ) {
-                    availableBatches.forEach { batch ->
-                        val isSelected = selectedBatch == batch
-                        BatchPillItem(
-                            batch = batch,
-                            isSelected = isSelected,
-                            onClick = { onBatchSelected(batch) },
-                            modifier = Modifier.weight(1f)
+                if (availableBatches.isEmpty()) {
+                    Surface(
+                        shape = RoundedCornerShape(12.dp),
+                        color = Color(0xFFFEF3C7),
+                        border = BorderStroke(1.dp, Color(0xFFFDE68A)),
+                        modifier = Modifier.fillMaxWidth()
+                    ) {
+                        Text(
+                            text = "⏳ ডাটাবেজ (GraphQL BatchOptions) থেকে ব্যাচ তালিকা লোড হচ্ছে...",
+                            fontSize = 13.sp,
+                            color = Color(0xFF92400E),
+                            modifier = Modifier.padding(14.dp)
                         )
+                    }
+                } else {
+                    Row(
+                        horizontalArrangement = Arrangement.spacedBy(10.dp),
+                        modifier = Modifier.fillMaxWidth()
+                    ) {
+                        availableBatches.forEach { batch ->
+                            val isSelected = selectedBatch == batch
+                            BatchPillItem(
+                                batch = batch,
+                                isSelected = isSelected,
+                                onClick = { onBatchSelected(batch) },
+                                modifier = Modifier.weight(1f)
+                            )
+                        }
                     }
                 }
             }

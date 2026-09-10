@@ -1,6 +1,6 @@
 {
-  "name": "Remix Remix MaxBird ",
-  "description": "A robust architecture plan for building cross-platform Android and desktop study apps using Kotlin Multiplatform and Compose.",
+  "name": "MaxBird",
+  "description": "A robust cross-platform Android and desktop study app built with Kotlin and Jetpack Compose.",
   "requestFramePermissions": [],
   "majorCapabilities": [
     "MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"
