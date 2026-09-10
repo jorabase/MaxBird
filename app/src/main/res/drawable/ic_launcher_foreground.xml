@@ -1,0 +1,20 @@
+<vector xmlns:android="http://schemas.android.com/apk/res/android"
+    android:width="108dp"
+    android:height="108dp"
+    android:viewportWidth="108"
+    android:viewportHeight="108">
+    <!-- Open Book Vector in 66dp center safe zone -->
+    <path
+        android:fillColor="#FFFFFF"
+        android:pathData="M28,42 C36,38 46,39 54,44 C62,39 72,38 80,42 C81.5,42.7 82,44 82,45.5 L82,70 C82,71.5 80.8,72.5 79.5,72 C72,68.5 62.5,69.5 54,75 C45.5,69.5 36,68.5 28.5,72 C27.2,72.5 26,71.5 26,70 L26,45.5 C26,44 26.5,42.7 28,42 Z" />
+    <path
+        android:fillColor="#312E81"
+        android:pathData="M53,44 L55,44 L55,74.5 L53,74.5 Z" />
+    <path
+        android:fillColor="#E0E7FF"
+        android:pathData="M33,50 L48,50 L48,53 L33,53 Z M33,57 L46,57 L46,60 L33,60 Z M60,50 L75,50 L75,53 L60,53 Z M62,57 L75,57 L75,60 L62,60 Z" />
+    <!-- Golden Knowledge Star atop book -->
+    <path
+        android:fillColor="#FBBF24"
+        android:pathData="M54,26 L56.5,33 L63.5,35.5 L56.5,38 L54,45 L51.5,38 L44.5,35.5 L51.5,33 Z" />
+</vector>
