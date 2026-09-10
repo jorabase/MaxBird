@@ -41,6 +41,7 @@ import androidx.compose.material.icons.filled.School
 import androidx.compose.ui.layout.ContentScale
 import coil.compose.AsyncImage
 import com.example.common.ui.components.UserAvatarView
+import com.example.common.ui.components.ProfileSyncStatusCard
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
@@ -433,8 +434,11 @@ private fun NavyHeroHeaderSection(
                 Spacer(modifier = Modifier.height(6.dp))
 
                 // Title: শুভ দিন, {user.name} 👋
+                val displayUserName = userProfile.name.ifBlank {
+                    if (userProfile.phone.isNotBlank()) "শিক্ষার্থী (${userProfile.phone})" else "শিক্ষার্থী"
+                }
                 Text(
-                    text = "শুভ দিন, ${userProfile.name} 👋",
+                    text = "শুভ দিন, $displayUserName 👋",
                     fontSize = 22.sp,
                     fontWeight = FontWeight.Black,
                     color = Color.White
@@ -554,7 +558,10 @@ private fun NavyHeroHeaderSection(
             }
         }
 
-        Spacer(modifier = Modifier.height(18.dp))
+        // Real-time server sync status banner (shows loading, or exact error cause if any)
+        ProfileSyncStatusCard(modifier = Modifier.padding(top = 10.dp))
+
+        Spacer(modifier = Modifier.height(14.dp))
 
         // Floating Banner Card (Report Card Alert)
         ReportCardBanner()

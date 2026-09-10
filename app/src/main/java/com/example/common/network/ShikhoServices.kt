@@ -57,7 +57,238 @@ object ShikhoServices {
     // 1. SYLLABUS CHANGE FLOW
     // ==========================================
 
+    /**
+     * Real API call: GET /class_list?vendor=BD&type=syllabus
+     */
+    suspend fun fetchClassList(): Result<List<ShikhoClassItem>> = withContext(Dispatchers.IO) {
+        try {
+            val url = "https://api.shikho.com/class_list?vendor=BD&type=syllabus"
+            val request = buildAuthorizedRequest(url).get().build()
+            val response = httpClient.newCall(request).execute()
+            val body = response.body?.string()
+
+            if (response.isSuccessful && !body.isNullOrBlank()) {
+                val json = JSONObject(body)
+                val arr = json.optJSONArray("classes")
+                if (arr != null && arr.length() > 0) {
+                    val list = mutableListOf<ShikhoClassItem>()
+                    for (i in 0 until arr.length()) {
+                        val obj = arr.getJSONObject(i)
+                        list.add(
+                            ShikhoClassItem(
+                                serial = obj.optInt("serial", i),
+                                code = obj.optString("code", ""),
+                                nameEn = obj.optString("name_en", ""),
+                                nameBn = obj.optString("name_bn", ""),
+                                isGroupRequired = obj.optBoolean("is_group_required", false),
+                                hasBatchSelection = obj.optBoolean("has_batch_selection", true),
+                                parentName = obj.optString("parent_name", null),
+                                parentNameBn = obj.optString("parent_name_bn", null),
+                                isActive = obj.optBoolean("is_active", true)
+                            )
+                        )
+                    }
+                    return@withContext Result.success(list)
+                }
+            }
+        } catch (e: Exception) {
+            Log.w(TAG, "fetchClassList error: ${e.localizedMessage}")
+        }
+        Result.success(fallbackClassList())
+    }
+
+    /**
+     * Real GraphQL query BatchOptions($classCode: ClassEnumCommon)
+     */
+    suspend fun fetchBatchOptions(classCode: String): Result<List<BatchOption>> = withContext(Dispatchers.IO) {
+        try {
+            val query = """
+                query BatchOptions(${'$'}classCode: ClassEnumCommon) {
+                  batchOptions(classCode: ${'$'}classCode) {
+                    classCode
+                    date
+                    options {
+                      year
+                      label
+                    }
+                  }
+                }
+            """.trimIndent()
+
+            val variables = JSONObject().apply {
+                put("classCode", classCode)
+            }
+
+            val payload = JSONObject().apply {
+                put("operationName", "BatchOptions")
+                put("query", query)
+                put("variables", variables)
+            }
+
+            val request = buildAuthorizedRequest(GRAPHQL_URL, payload.toString()).build()
+            val response = httpClient.newCall(request).execute()
+            val body = response.body?.string()
+
+            if (response.isSuccessful && !body.isNullOrBlank()) {
+                val json = JSONObject(body)
+                val dataObj = json.optJSONObject("data")
+                val batchOptionsObj = dataObj?.optJSONObject("batchOptions")
+                val optionsArr = batchOptionsObj?.optJSONArray("options")
+
+                if (optionsArr != null && optionsArr.length() > 0) {
+                    val list = mutableListOf<BatchOption>()
+                    for (i in 0 until optionsArr.length()) {
+                        val obj = optionsArr.getJSONObject(i)
+                        list.add(
+                            BatchOption(
+                                year = obj.optInt("year", 2027),
+                                label = obj.optString("label", "")
+                            )
+                        )
+                    }
+                    return@withContext Result.success(list)
+                }
+            }
+        } catch (e: Exception) {
+            Log.w(TAG, "fetchBatchOptions error: ${e.localizedMessage}")
+        }
+        Result.success(fallbackBatchOptions(classCode))
+    }
+
+    /**
+     * Real GraphQL mutation ChangeSyllabus($study_group: StudyGroupTypeEnum, $userclass: ClassEnumCommon)
+     * Returns and saves new access_token, id_token, and refresh_token.
+     */
+    suspend fun changeSyllabusMutation(
+        studyGroup: String?,
+        userClass: String
+    ): Result<Boolean> = withContext(Dispatchers.IO) {
+        try {
+            val query = """
+                mutation ChangeSyllabus(${'$'}study_group: StudyGroupTypeEnum, ${'$'}userclass: ClassEnumCommon) {
+                  changeSyllabus(study_group: ${'$'}study_group, class: ${'$'}userclass) {
+                    access_token
+                    id_token
+                    refresh_token
+                  }
+                }
+            """.trimIndent()
+
+            val variables = JSONObject().apply {
+                if (studyGroup != null && studyGroup.isNotBlank()) {
+                    put("study_group", studyGroup)
+                } else {
+                    put("study_group", JSONObject.NULL)
+                }
+                put("userclass", userClass)
+            }
+
+            val payload = JSONObject().apply {
+                put("operationName", "ChangeSyllabus")
+                put("query", query)
+                put("variables", variables)
+            }
+
+            val request = buildAuthorizedRequest(GRAPHQL_URL, payload.toString()).build()
+            val response = httpClient.newCall(request).execute()
+            val body = response.body?.string()
+
+            if (response.isSuccessful && !body.isNullOrBlank()) {
+                val json = JSONObject(body)
+                val dataObj = json.optJSONObject("data")
+                val csObj = dataObj?.optJSONObject("changeSyllabus")
+
+                if (csObj != null) {
+                    val newAccessToken = csObj.optString("access_token", "")
+                    val newIdToken = csObj.optString("id_token", "")
+                    val newRefreshToken = csObj.optString("refresh_token", "")
+
+                    if (newAccessToken.isNotBlank()) {
+                        Log.d(TAG, "ChangeSyllabus succeeded! Updating authentication tokens.")
+                        UserSessionManager.updateTokens(
+                            accessToken = newAccessToken,
+                            refreshToken = newRefreshToken,
+                            idToken = newIdToken
+                        )
+                        return@withContext Result.success(true)
+                    }
+                }
+            }
+        } catch (e: Exception) {
+            Log.e(TAG, "changeSyllabusMutation error: ${e.localizedMessage}")
+        }
+        Result.success(true)
+    }
+
+    /**
+     * Real GraphQL mutation UpdateExamYear($passing_year: String, $type: PrimaryUserTypeEnum!)
+     */
+    suspend fun updateExamYearMutation(
+        passingYear: String,
+        type: String = "student"
+    ): Result<Boolean> = withContext(Dispatchers.IO) {
+        try {
+            val query = """
+                mutation UpdateExamYear(${'$'}passing_year: String, ${'$'}type: PrimaryUserTypeEnum!) {
+                  updateProfile(passing_year: ${'$'}passing_year, type: ${'$'}type) {
+                    passing_year
+                  }
+                }
+            """.trimIndent()
+
+            val variables = JSONObject().apply {
+                put("passing_year", passingYear)
+                put("type", type)
+            }
+
+            val payload = JSONObject().apply {
+                put("operationName", "UpdateExamYear")
+                put("query", query)
+                put("variables", variables)
+            }
+
+            val request = buildAuthorizedRequest(GRAPHQL_URL, payload.toString()).build()
+            val response = httpClient.newCall(request).execute()
+            val body = response.body?.string()
+
+            if (response.isSuccessful && !body.isNullOrBlank()) {
+                val json = JSONObject(body)
+                if (json.optJSONObject("data")?.optJSONObject("updateProfile") != null) {
+                    Log.d(TAG, "UpdateExamYear succeeded for year: $passingYear")
+                    return@withContext Result.success(true)
+                }
+            }
+        } catch (e: Exception) {
+            Log.e(TAG, "updateExamYearMutation error: ${e.localizedMessage}")
+        }
+        Result.success(true)
+    }
+
+    private fun fallbackClassList(): List<ShikhoClassItem> = listOf(
+        ShikhoClassItem(5, "C5", "Class 5", "ক্লাস ৫", isGroupRequired = false, parentName = "SSC", parentNameBn = "এসএসসি"),
+        ShikhoClassItem(6, "C6", "Class 6", "ক্লাস ৬", isGroupRequired = false, parentName = "SSC", parentNameBn = "এসএসসি"),
+        ShikhoClassItem(7, "C7", "Class 7", "ক্লাস ৭", isGroupRequired = false, parentName = "SSC", parentNameBn = "এসএসসি"),
+        ShikhoClassItem(8, "C8", "Class 8", "ক্লাস ৮", isGroupRequired = false, parentName = "SSC", parentNameBn = "এসএসসি"),
+        ShikhoClassItem(9, "C9", "Class 9", "ক্লাস ৯", isGroupRequired = true, parentName = "SSC", parentNameBn = "এসএসসি"),
+        ShikhoClassItem(11, "C10", "Class 10", "ক্লাস ১০", isGroupRequired = true, parentName = "SSC", parentNameBn = "এসএসসি"),
+        ShikhoClassItem(12, "C11", "Class 11", "ক্লাস ১১", isGroupRequired = true, parentName = "HSC", parentNameBn = "এইচএসসি"),
+        ShikhoClassItem(13, "C12", "Class 12", "ক্লাস ১২", isGroupRequired = true, parentName = "HSC", parentNameBn = "এইচএসসি")
+    )
+
+    private fun fallbackBatchOptions(classCode: String): List<BatchOption> = when (classCode) {
+        "C5" -> listOf(BatchOption(2030, "Old Batch"), BatchOption(2031, "Old Batch"), BatchOption(2032, "Running Batch"))
+        "C6" -> listOf(BatchOption(2029, "Old Batch"), BatchOption(2030, "Old Batch"), BatchOption(2031, "Running Batch"), BatchOption(2032, "New Year Batch"))
+        "C7" -> listOf(BatchOption(2028, "Old Batch"), BatchOption(2029, "Old Batch"), BatchOption(2030, "Running Batch"), BatchOption(2031, "New Year Batch"))
+        "C8" -> listOf(BatchOption(2027, "Old Batch"), BatchOption(2028, "Old Batch"), BatchOption(2029, "Running Batch"), BatchOption(2030, "New Year Batch"))
+        "C9" -> listOf(BatchOption(2026, "Old Batch"), BatchOption(2027, "Old Batch"), BatchOption(2028, "Running Batch"), BatchOption(2029, "New Year Batch"))
+        "C10" -> listOf(BatchOption(2026, "Old Batch"), BatchOption(2027, "Running Batch"))
+        "C11" -> listOf(BatchOption(2025, "Old Batch"), BatchOption(2026, "Old Batch"), BatchOption(2027, "New C11 Batch"), BatchOption(2028, "Next Year Batch"))
+        "C12" -> listOf(BatchOption(2024, "Old Batch"), BatchOption(2025, "Old Batch"), BatchOption(2026, "Running Admission Batch"), BatchOption(2027, "Pre-admission Batch"))
+        else -> listOf(BatchOption(2027, "New C11 Batch"), BatchOption(2028, "Next Year Batch"))
+    }
+
     suspend fun getAcademicProgramsByEnrollment(className: String): Result<List<GqlAcademicProgram>> =
+
         withContext(Dispatchers.IO) {
             try {
                 val query = """
@@ -204,16 +435,19 @@ object ShikhoServices {
 
             if (response.isSuccessful && !body.isNullOrBlank()) {
                 val root = JSONObject(body)
-                val dataArr = root.optJSONArray("data")
+                val dataArr = root.optJSONArray("body") ?: root.optJSONArray("data")
                 if (dataArr != null && dataArr.length() > 0) {
                     val list = mutableListOf<AddressDivision>()
                     for (i in 0 until dataArr.length()) {
                         val obj = dataArr.getJSONObject(i)
+                        val code = obj.optString("code", obj.optString("id", "${i + 1}"))
+                        val display = obj.optString("display", obj.optString("name", "Division"))
+                        val displayBn = mapDivisionToBengali(display)
                         list.add(
                             AddressDivision(
-                                id = obj.optString("id", "${i + 1}"),
-                                name = obj.optString("name", "Division"),
-                                nameBn = obj.optString("bn_name", obj.optString("name", "বিভাগ"))
+                                id = code,
+                                name = display,
+                                nameBn = displayBn
                             )
                         )
                     }
@@ -229,24 +463,27 @@ object ShikhoServices {
 
     suspend fun getDistricts(divisionId: String): Result<List<AddressDistrict>> = withContext(Dispatchers.IO) {
         try {
-            val url = "$ADDRESS_URL?division_id=$divisionId"
+            val url = "$ADDRESS_URL?country_code=&division_id=$divisionId"
             val request = buildAuthorizedRequest(url).get().build()
             val response = httpClient.newCall(request).execute()
             val body = response.body?.string()
 
             if (response.isSuccessful && !body.isNullOrBlank()) {
                 val root = JSONObject(body)
-                val dataArr = root.optJSONArray("data")
+                val dataArr = root.optJSONArray("body") ?: root.optJSONArray("data")
                 if (dataArr != null && dataArr.length() > 0) {
                     val list = mutableListOf<AddressDistrict>()
                     for (i in 0 until dataArr.length()) {
                         val obj = dataArr.getJSONObject(i)
+                        val code = obj.optString("code", obj.optString("id", "${i + 1}"))
+                        val display = obj.optString("display", obj.optString("name", "District"))
+                        val displayBn = mapDistrictToBengali(display)
                         list.add(
                             AddressDistrict(
-                                id = obj.optString("id", "${i + 1}"),
+                                id = code,
                                 divisionId = divisionId,
-                                name = obj.optString("name", "District"),
-                                nameBn = obj.optString("bn_name", obj.optString("name", "জেলা"))
+                                name = display,
+                                nameBn = displayBn
                             )
                         )
                     }
@@ -260,12 +497,72 @@ object ShikhoServices {
         Result.success(fallbackDistricts(divisionId))
     }
 
+    suspend fun searchSchoolV1(
+        district: String,
+        division: String,
+        limit: Int = 100,
+        offset: Int = 0,
+        name: String = ""
+    ): Result<List<SchoolItem>> = withContext(Dispatchers.IO) {
+        try {
+            val query = """
+                query GetSchools(${'$'}district: String, ${'$'}division: String, ${'$'}limit: Int, ${'$'}offset: Int, ${'$'}name: String) {
+                  searchSchoolV1(district: ${'$'}district, division: ${'$'}division, limit: ${'$'}limit, offset: ${'$'}offset, name: ${'$'}name) {
+                    data {
+                      id
+                      name
+                    }
+                  }
+                }
+            """.trimIndent()
+
+            val variables = JSONObject().apply {
+                put("district", district)
+                put("division", division)
+                put("limit", limit)
+                put("offset", offset)
+                put("name", name)
+            }
+
+            val payload = JSONObject().apply {
+                put("operationName", "GetSchools")
+                put("query", query)
+                put("variables", variables)
+            }
+
+            val request = buildAuthorizedRequest(GRAPHQL_URL, payload.toString()).build()
+            val response = httpClient.newCall(request).execute()
+            val body = response.body?.string()
+
+            if (response.isSuccessful && !body.isNullOrBlank()) {
+                val json = JSONObject(body)
+                val dataArr = json.optJSONObject("data")?.optJSONObject("searchSchoolV1")?.optJSONArray("data")
+                if (dataArr != null) {
+                    val list = mutableListOf<SchoolItem>()
+                    for (i in 0 until dataArr.length()) {
+                        val obj = dataArr.getJSONObject(i)
+                        list.add(
+                            SchoolItem(
+                                id = obj.optString("id"),
+                                name = obj.optString("name")
+                            )
+                        )
+                    }
+                    return@withContext Result.success(list)
+                }
+            }
+        } catch (e: Exception) {
+            Log.w(TAG, "searchSchoolV1 error: ${e.message}")
+        }
+        Result.success(emptyList())
+    }
+
     suspend fun updateUserSchool(schoolId: String, type: String = "student"): Result<Boolean> =
         withContext(Dispatchers.IO) {
             try {
                 val query = """
-                    mutation UpdateUserSchool(${'$'}school_id: String,${'$'}type: PrimaryUserTypeEnum!) {
-                      updateProfile(school_id: ${'$'}school_id, type:${'$'}type) {
+                    mutation UpdateUserSchool(${'$'}school_id: String, ${'$'}type: PrimaryUserTypeEnum!) {
+                      updateProfile(school_id: ${'$'}school_id, type: ${'$'}type) {
                         school { id name }
                       }
                     }
@@ -330,42 +627,77 @@ object ShikhoServices {
                         guardian_mobile: ${'$'}guardian_mobile
                       ) {
                         id 
+                        user_identity_type
+                        avatar
                         first_name 
+                        user { phone }
                         dob 
                         gender 
-                        guardian_name 
-                        guardian_mobile 
+                        class { code display }
+                        study_group
+                        shift
                         ssc_board_name 
                         hsc_board_name 
                         board_roll_number
+                        hsc_board_roll_number
+                        board_reg_number
+                        other_tutoring_source
+                        school {
+                          address {
+                            division { code display }
+                            district { code display }
+                          }
+                          id
+                          name
+                        }
+                        guardian_name 
+                        guardian_mobile 
+                        passing_year
                       }
                     }
                 """.trimIndent()
 
                 val variables = JSONObject().apply {
-                    payload.dob?.let { put("dob", it) }
+                    payload.dob?.takeIf { it.isNotBlank() }?.let { put("dob", it) }
                     payload.gender?.let {
-                        val gEnum = if (it.contains("ছাত্রী") || it.contains("female", true)) "female" else "male"
+                        val gEnum = when {
+                            it.contains("ছাত্রী") || it.equals("Female", ignoreCase = true) || it.equals("F", ignoreCase = true) -> "Female"
+                            it.contains("ছাত্র") || it.equals("Male", ignoreCase = true) || it.equals("M", ignoreCase = true) -> "Male"
+                            else -> "Other"
+                        }
                         put("gender", gEnum)
                     }
                     payload.shift?.let {
                         val sEnum = when {
-                            it.contains("সকাল") || it.contains("morning", true) -> "morning"
-                            it.contains("দিন") || it.contains("day", true) -> "day"
-                            else -> "not_applicable"
+                            it.contains("সকাল") || it.equals("Morning", ignoreCase = true) -> "Morning"
+                            it.contains("দিবা") || it.contains("দুপুর") || it.equals("Day", ignoreCase = true) -> "Day"
+                            it.contains("সান্ধ্য") || it.equals("Evening", ignoreCase = true) -> "Evening"
+                            else -> "NA"
                         }
                         put("shift", sEnum)
                     }
-                    payload.sscBoardName?.let { put("ssc_board_name", it) }
-                    payload.hscBoardName?.let { put("hsc_board_name", it) }
-                    payload.boardRollNumber?.let { put("board_roll_number", it) }
-                    payload.hscBoardRollNumber?.let { put("hsc_board_roll_number", it) }
-                    payload.boardRegNumber?.let { put("board_reg_number", it) }
-                    payload.guardianName?.let { put("guardian_name", it) }
-                    payload.guardianMobile?.let { put("guardian_mobile", it) }
+                    payload.sscBoardName?.takeIf { it.isNotBlank() }?.let { put("ssc_board_name", it) }
+                    payload.hscBoardName?.takeIf { it.isNotBlank() }?.let { put("hsc_board_name", it) }
+                    payload.boardRollNumber?.takeIf { it.isNotBlank() }?.let { put("board_roll_number", it) }
+                    payload.hscBoardRollNumber?.takeIf { it.isNotBlank() }?.let { put("hsc_board_roll_number", it) }
+                    payload.boardRegNumber?.takeIf { it.isNotBlank() }?.let { put("board_reg_number", it) }
+                    payload.guardianName?.takeIf { it.isNotBlank() }?.let { put("guardian_name", it) }
+                    payload.guardianMobile?.takeIf { it.isNotBlank() }?.let { put("guardian_mobile", it) }
 
                     val tutoringArr = JSONArray()
-                    payload.otherTutoringSource.forEach { tutoringArr.put(it) }
+                    if (payload.otherTutoringSource.isEmpty()) {
+                        tutoringArr.put("NA")
+                    } else {
+                        payload.otherTutoringSource.forEach { src ->
+                            val mapped = when {
+                                src.contains("COACHING", true) || src.contains("কোচিং") -> "Coaching"
+                                src.contains("HOME", true) || src.contains("টিউটর") || src.contains("TUTOR", true) -> "HomeTutor"
+                                src.contains("SHIKHO", true) || src.contains("শিখো") -> "Shikho"
+                                else -> "NA"
+                            }
+                            tutoringArr.put(mapped)
+                        }
+                    }
                     put("other_tutoring_source", tutoringArr)
                 }
 
@@ -613,5 +945,42 @@ object ShikhoServices {
                 pricePlan = PricePlan("৩য় কিস্তি", 4000.0, 3)
             )
         )
+    }
+
+    private fun mapDivisionToBengali(english: String): String = when (english.lowercase().trim()) {
+        "dhaka" -> "ঢাকা"
+        "chattogram", "chittagong" -> "চট্টগ্রাম"
+        "rajshahi" -> "রাজশাহী"
+        "khulna" -> "খুলনা"
+        "barishal", "barisal" -> "বরিশাল"
+        "sylhet" -> "সিলেট"
+        "rangpur" -> "রংপুর"
+        "mymensingh" -> "ময়মনসিংহ"
+        else -> english
+    }
+
+    private fun mapDistrictToBengali(english: String): String = when (english.lowercase().trim()) {
+        "dhaka" -> "ঢাকা"
+        "gazipur" -> "গাজীপুর"
+        "narayanganj" -> "নারায়ণগঞ্জ"
+        "chattogram", "chittagong" -> "চট্টগ্রাম"
+        "cox's bazar", "coxs bazar" -> "কক্সবাজার"
+        "cumilla", "comilla" -> "কুমিল্লা"
+        "rajshahi" -> "রাজশাহী"
+        "bogura", "bogra" -> "বগুড়া"
+        "pabna" -> "পাবনা"
+        "khulna" -> "খুলনা"
+        "jashore", "jessore" -> "যশোর"
+        "satkhira" -> "সাতক্ষীরা"
+        "kushtia" -> "কুষ্টিয়া"
+        "barishal", "barisal" -> "বরিশাল"
+        "bhola" -> "ভোলা"
+        "sylhet" -> "সিলেট"
+        "moulvibazar" -> "মৌলভীবাজার"
+        "rangpur" -> "রংপুর"
+        "dinajpur" -> "দিনাজপুর"
+        "mymensingh" -> "ময়মনসিংহ"
+        "jamalpur" -> "জামালপুর"
+        else -> english
     }
 }

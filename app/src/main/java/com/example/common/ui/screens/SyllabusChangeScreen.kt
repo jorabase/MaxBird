@@ -70,10 +70,56 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.example.common.model.UserProfile
+import com.example.common.network.BatchOption
 import com.example.common.network.UserSessionManager
+import com.example.common.ui.components.ProfileSyncStatusCard
 import com.example.common.viewmodel.SyllabusSyncUiState
 import com.example.common.viewmodel.SyllabusViewModel
 import kotlinx.coroutines.launch
+
+private fun toBengaliDigits(input: String): String {
+    val enDigits = arrayOf('0', '1', '2', '3', '4', '5', '6', '7', '8', '9')
+    val bnDigits = arrayOf('০', '১', '২', '৩', '৪', '৫', '৬', '৭', '৮', '৯')
+    var result = input
+    for (i in 0..9) {
+        result = result.replace(enDigits[i], bnDigits[i])
+    }
+    return result
+}
+
+private fun formatClassDisplay(raw: String): String = when {
+    raw.contains("11") || raw.contains("C11", ignoreCase = true) || raw.contains("এইচএসসি") || raw.contains("HSC", ignoreCase = true) -> "এইচএসসি"
+    raw.contains("12") || raw.contains("C12", ignoreCase = true) -> "এইচএসসি (২য় বর্ষ)"
+    raw.contains("10") || raw.contains("C10", ignoreCase = true) -> "ক্লাস ১০"
+    raw.contains("9") || raw.contains("C09", ignoreCase = true) -> "ক্লাস ৯"
+    raw.contains("8") || raw.contains("C08", ignoreCase = true) -> "ক্লাস ৮"
+    raw.contains("7") || raw.contains("C07", ignoreCase = true) -> "ক্লাস ৭"
+    raw.contains("6") || raw.contains("C06", ignoreCase = true) -> "ক্লাস ৬"
+    raw.contains("5") || raw.contains("C05", ignoreCase = true) -> "ক্লাস ৫"
+    raw.isNotBlank() -> raw
+    else -> "এইচএসসি"
+}
+
+private fun formatGroupDisplay(raw: String): String = when {
+    raw.contains("HUM", ignoreCase = true) || raw.contains("মানবিক") || raw.contains("Humanities", ignoreCase = true) -> "মানবিক"
+    raw.contains("SCI", ignoreCase = true) || raw.contains("বিজ্ঞান") || raw.contains("Science", ignoreCase = true) -> "বিজ্ঞান"
+    raw.contains("BUS", ignoreCase = true) || raw.contains("ব্যবসায়") || raw.contains("Business", ignoreCase = true) -> "ব্যবসায় শিক্ষা"
+    raw.isNotBlank() -> raw
+    else -> "মানবিক"
+}
+
+private fun mapClassToCode(label: String): String = when {
+    label.contains("১১") || label.contains("এইচএসসি") || label.contains("HSC") -> "C11"
+    label.contains("১২") -> "C12"
+    label.contains("১০") -> "C10"
+    label.contains("৯") -> "C09"
+    label.contains("৮") -> "C08"
+    label.contains("৭") -> "C07"
+    label.contains("৬") -> "C06"
+    label.contains("৫") -> "C05"
+    label.contains("এডমিশন") -> "CAD"
+    else -> "C11"
+}
 
 /**
  * Modern, High-Craft Syllabus Management Screen ("সিলেবাস পরিবর্তন")
@@ -97,6 +143,7 @@ fun SyllabusChangeScreen(
 
     val syncState by viewModel.syncState.collectAsStateWithLifecycle()
     val isSyncing = syncState is SyllabusSyncUiState.Loading
+    val serverBatchOptions by viewModel.batchOptionsState.collectAsStateWithLifecycle()
 
     // Initial state from current profile
     val currentProfile = UserSessionManager.currentUserProfile
@@ -106,10 +153,16 @@ fun SyllabusChangeScreen(
             if (currentProfile.examBatch.contains("২০২৭")) "২০২৭"
             else if (currentProfile.examBatch.contains("২০২৬")) "২০২৬"
             else if (currentProfile.examBatch.contains("২০২৮")) "২০২৮"
-            else "২০২৫"
+            else "২০২৭"
         )
     }
     var selectedGroup by remember { mutableStateOf(currentProfile.group) }
+
+    androidx.compose.runtime.LaunchedEffect(isEditing) {
+        if (isEditing) {
+            viewModel.loadBatchOptions(mapClassToCode(selectedClass))
+        }
+    }
 
     val snackbarHostState = remember { SnackbarHostState() }
     val scope = rememberCoroutineScope()
@@ -176,11 +229,15 @@ fun SyllabusChangeScreen(
                 // SCREENSHOTS 2 & 3: Interactive Class, Batch, and Group Selector
                 SyllabusSelectorView(
                     selectedClass = selectedClass,
-                    onClassSelected = { selectedClass = it },
+                    onClassSelected = {
+                        selectedClass = it
+                        viewModel.loadBatchOptions(mapClassToCode(it))
+                    },
                     selectedBatch = selectedBatch,
                     onBatchSelected = { selectedBatch = it },
                     selectedGroup = selectedGroup,
                     onGroupSelected = { selectedGroup = it },
+                    serverBatchOptions = serverBatchOptions,
                     isSyncing = isSyncing,
                     onConfirm = {
                         viewModel.syncSyllabus(
@@ -219,7 +276,13 @@ private fun SyllabusOverviewView(
         verticalArrangement = Arrangement.spacedBy(20.dp)
     ) {
         item {
-            Spacer(modifier = Modifier.height(18.dp))
+            ProfileSyncStatusCard(
+                modifier = Modifier.padding(top = 10.dp)
+            )
+        }
+
+        item {
+            Spacer(modifier = Modifier.height(10.dp))
 
             // School Bag Illustration Container (matching Screenshot 1 circle header)
             Box(
@@ -256,7 +319,7 @@ private fun SyllabusOverviewView(
                         iconEmoji = "🖥️",
                         iconBg = Color(0xFFDCFCE7),
                         title = "ক্লাস",
-                        value = profile.studentClass
+                        value = formatClassDisplay(profile.studentClass)
                     )
 
                     // Item 2: গ্রুপ
@@ -264,7 +327,7 @@ private fun SyllabusOverviewView(
                         iconEmoji = "🧪",
                         iconBg = Color(0xFFFEE2E2),
                         title = "গ্রুপ",
-                        value = profile.group
+                        value = formatGroupDisplay(profile.group)
                     )
 
                     // Item 3: পরীক্ষার ধরন
@@ -272,11 +335,12 @@ private fun SyllabusOverviewView(
                         iconEmoji = "📝",
                         iconBg = Color(0xFFFEF9C3),
                         title = "পরীক্ষার ধরন",
-                        value = profile.studentClass
+                        value = formatClassDisplay(profile.studentClass)
                     )
 
                     // Item 4: পরীক্ষার সাল
-                    val yearOnly = profile.examBatch.filter { it.isDigit() }.ifEmpty { "২০২৭" }
+                    val rawYear = profile.examBatch.filter { it.isDigit() }.ifEmpty { "2027" }
+                    val yearOnly = toBengaliDigits(rawYear)
                     SyllabusDetailItem(
                         iconEmoji = "📅",
                         iconBg = Color(0xFFE0F2FE),
@@ -372,6 +436,7 @@ private fun SyllabusSelectorView(
     onBatchSelected: (String) -> Unit,
     selectedGroup: String,
     onGroupSelected: (String) -> Unit,
+    serverBatchOptions: List<BatchOption> = emptyList(),
     isSyncing: Boolean = false,
     onConfirm: () -> Unit
 ) {
@@ -387,16 +452,20 @@ private fun SyllabusSelectorView(
     )
 
     // ধাপ ৩: ক্যাসকেডিং ডিপেন্ডেন্সি অনুযায়ী ডায়নামিক ব্যাচ তালিকা
-    val availableBatches = when {
-        selectedClass.contains("৫") -> listOf("২০৩০", "২০৩১", "২০৩২")
-        selectedClass.contains("৬") -> listOf("২০২৯", "২০৩০", "২০৩১")
-        selectedClass.contains("৭") -> listOf("২০২৮", "২০২৯", "২০৩০")
-        selectedClass.contains("৮") -> listOf("২০২৭", "২০২৮", "২০২৯")
-        selectedClass.contains("৯") -> listOf("২০২৬", "২০২৭", "২০২৮")
-        selectedClass.contains("১০") -> listOf("২০২৬", "২০২৭")
-        selectedClass.contains("এইচএসসি") -> listOf("২০২৭", "২০২৮")
-        selectedClass.contains("এডমিশন") -> listOf("২০২৫", "২০২৬")
-        else -> listOf("২০২৭", "২০২৮")
+    val availableBatches = if (serverBatchOptions.isNotEmpty()) {
+        serverBatchOptions.map { toBengaliDigits(it.year.toString()) }
+    } else {
+        when {
+            selectedClass.contains("৫") -> listOf("২০৩০", "২০৩১", "২০৩২")
+            selectedClass.contains("৬") -> listOf("২০২৯", "২০৩০", "২০৩১")
+            selectedClass.contains("৭") -> listOf("২০২৮", "২০২৯", "২০৩০")
+            selectedClass.contains("৮") -> listOf("২০২৭", "২০২৮", "২০২৯")
+            selectedClass.contains("৯") -> listOf("২০২৬", "২০২৭", "২০২৮")
+            selectedClass.contains("১০") -> listOf("২০২৬", "২০২৭")
+            selectedClass.contains("এইচএসসি") -> listOf("২০২৭", "২০২৮")
+            selectedClass.contains("এডমিশন") -> listOf("২০২৫", "২০২৬")
+            else -> listOf("২০২৭", "২০২৮")
+        }
     }
 
     // ক্লাস ৫ থেকে ৮ পর্যন্ত কোনো বিভাগ (গ্রুপ) থাকে না

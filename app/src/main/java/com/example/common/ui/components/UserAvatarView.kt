@@ -19,15 +19,17 @@ import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.TextUnit
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import coil.compose.SubcomposeAsyncImage
+import coil.request.ImageRequest
 
 /**
  * Modern User Avatar Component:
- * 1. Directly renders image from CDN (user.avatarUrl) if present.
+ * 1. Directly renders image from CDN (user.avatarUrl) if present with https protocol.
  * 2. If image is missing, empty, or fails to load, gracefully falls back to an initial-letter
  *    avatar rendered on a vibrant, eye-safe gradient background (e.g., "F" for "Fahim").
  */
@@ -43,6 +45,9 @@ fun UserAvatarView(
 ) {
     val cleanName = name.trim().ifEmpty { "Student" }
     val initialChar = cleanName.firstOrNull()?.uppercaseChar()?.toString() ?: "S"
+    val safeAvatarUrl = remember(avatarUrl) {
+        avatarUrl?.trim()?.takeIf { it.isNotBlank() }?.replace("http://", "https://")
+    }
 
     val gradientBrush = remember(cleanName) {
         val hash = cleanName.hashCode()
@@ -54,7 +59,15 @@ fun UserAvatarView(
         }
     }
 
-    var isImageError by remember(avatarUrl) { mutableStateOf(false) }
+    val context = LocalContext.current
+    val imageRequest = remember(safeAvatarUrl) {
+        if (!safeAvatarUrl.isNullOrBlank()) {
+            ImageRequest.Builder(context)
+                .data(safeAvatarUrl)
+                .crossfade(true)
+                .build()
+        } else null
+    }
 
     Box(
         modifier = modifier
@@ -66,9 +79,9 @@ fun UserAvatarView(
             ),
         contentAlignment = Alignment.Center
     ) {
-        if (!avatarUrl.isNullOrBlank() && !isImageError) {
+        if (imageRequest != null) {
             SubcomposeAsyncImage(
-                model = avatarUrl,
+                model = imageRequest,
                 contentDescription = name,
                 contentScale = ContentScale.Crop,
                 modifier = Modifier.fillMaxSize(),

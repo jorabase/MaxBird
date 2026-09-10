@@ -30,6 +30,7 @@ import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.statusBarsPadding
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
+import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.KeyboardOptions
@@ -48,6 +49,7 @@ import androidx.compose.material.icons.filled.Person
 import androidx.compose.material.icons.filled.School
 import androidx.compose.material.icons.filled.Search
 import androidx.compose.material.icons.filled.VerifiedUser
+import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.Card
@@ -68,6 +70,7 @@ import androidx.compose.material3.OutlinedTextFieldDefaults
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
+import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableIntStateOf
@@ -977,9 +980,13 @@ private fun Step3GuardianInfo(
     var expandedDivision by remember { mutableStateOf(false) }
     var expandedDistrict by remember { mutableStateOf(false) }
     var expandedMedium by remember { mutableStateOf(false) }
+    var showSchoolDialog by remember { mutableStateOf(false) }
+    var schoolSearchQuery by remember { mutableStateOf("") }
 
     val divisions by viewModel.divisions.collectAsStateWithLifecycle()
     val districts by viewModel.districts.collectAsStateWithLifecycle()
+    val schools by viewModel.schools.collectAsStateWithLifecycle()
+    val isSearchingSchools by viewModel.isSearchingSchools.collectAsStateWithLifecycle()
 
     val fallbackDivisions = listOf("Dhaka", "Chattogram", "Rajshahi", "Khulna", "Barishal", "Sylhet", "Rangpur", "Mymensingh")
     val divisionNames = if (divisions.isNotEmpty()) divisions.map { it.name } else fallbackDivisions
@@ -994,6 +1001,122 @@ private fun Step3GuardianInfo(
         "PRIVATE_TUTOR" to "প্রাইভেট টিউটর",
         "SELF_STUDY" to "নিজে নিজে"
     )
+
+    if (showSchoolDialog) {
+        val matchedDiv = divisions.find { it.name == profile.institutionDivision || it.nameBn == profile.institutionDivision }
+        val matchedDist = districts.find { it.name == profile.institutionDistrict || it.nameBn == profile.institutionDistrict }
+
+        AlertDialog(
+            onDismissRequest = { showSchoolDialog = false },
+            title = {
+                Text(
+                    text = "স্কুল/কলেজ নির্বাচন করো",
+                    fontSize = 17.sp,
+                    fontWeight = FontWeight.Bold,
+                    color = Color(0xFF1E293B)
+                )
+            },
+            text = {
+                Column(modifier = Modifier.fillMaxWidth()) {
+                    OutlinedTextField(
+                        value = schoolSearchQuery,
+                        onValueChange = { q ->
+                            schoolSearchQuery = q
+                            if (matchedDiv != null && matchedDist != null) {
+                                viewModel.searchSchools(matchedDist.id, matchedDiv.id, q)
+                            }
+                        },
+                        placeholder = { Text("স্কুল বা কলেজের নাম খুঁজুন...") },
+                        singleLine = true,
+                        leadingIcon = {
+                            Icon(Icons.Default.Search, contentDescription = null, tint = Color(0xFF2563EB))
+                        },
+                        trailingIcon = {
+                            if (isSearchingSchools) {
+                                CircularProgressIndicator(modifier = Modifier.size(18.dp), strokeWidth = 2.dp)
+                            }
+                        },
+                        shape = RoundedCornerShape(12.dp),
+                        modifier = Modifier.fillMaxWidth()
+                    )
+
+                    Spacer(modifier = Modifier.height(12.dp))
+
+                    if (schools.isEmpty() && !isSearchingSchools) {
+                        Box(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .height(120.dp),
+                            contentAlignment = Alignment.Center
+                        ) {
+                            Text(
+                                text = if (matchedDist == null) "অনুগ্রহ করে আগে জেলা নির্বাচন করুন" else "কোনো স্কুল পাওয়া যায়নি",
+                                fontSize = 13.sp,
+                                color = Color(0xFF94A3B8)
+                            )
+                        }
+                    } else {
+                        LazyColumn(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .height(260.dp),
+                            verticalArrangement = Arrangement.spacedBy(6.dp)
+                        ) {
+                            items(schools) { school ->
+                                Surface(
+                                    shape = RoundedCornerShape(10.dp),
+                                    color = if (profile.schoolId == school.id) Color(0xFFEFF6FF) else Color(0xFFF8FAFC),
+                                    border = BorderStroke(
+                                        1.dp,
+                                        if (profile.schoolId == school.id) Color(0xFF2563EB) else Color(0xFFE2E8F0)
+                                    ),
+                                    modifier = Modifier
+                                        .fillMaxWidth()
+                                        .clickable {
+                                            onProfileChange(
+                                                profile.copy(
+                                                    institutionName = school.name,
+                                                    schoolId = school.id
+                                                )
+                                            )
+                                            viewModel.onSchoolSelected(school.id, school.name)
+                                            showSchoolDialog = false
+                                        }
+                                ) {
+                                    Row(
+                                        modifier = Modifier.padding(12.dp),
+                                        verticalAlignment = Alignment.CenterVertically
+                                    ) {
+                                        Icon(
+                                            imageVector = Icons.Default.School,
+                                            contentDescription = null,
+                                            tint = if (profile.schoolId == school.id) Color(0xFF2563EB) else Color(0xFF64748B),
+                                            modifier = Modifier.size(20.dp)
+                                        )
+                                        Spacer(modifier = Modifier.width(10.dp))
+                                        Text(
+                                            text = school.name,
+                                            fontSize = 13.sp,
+                                            fontWeight = if (profile.schoolId == school.id) FontWeight.Bold else FontWeight.Normal,
+                                            color = Color(0xFF1E293B),
+                                            modifier = Modifier.weight(1f)
+                                        )
+                                    }
+                                }
+                            }
+                        }
+                    }
+                }
+            },
+            confirmButton = {
+                TextButton(onClick = { showSchoolDialog = false }) {
+                    Text("বন্ধ করুন", color = Color(0xFF2563EB), fontWeight = FontWeight.Bold)
+                }
+            },
+            shape = RoundedCornerShape(20.dp),
+            containerColor = Color.White
+        )
+    }
 
     LazyColumn(
         modifier = Modifier
@@ -1066,8 +1189,15 @@ private fun Step3GuardianInfo(
                             DropdownMenuItem(
                                 text = { Text(divName) },
                                 onClick = {
-                                    onProfileChange(profile.copy(institutionDivision = divName))
-                                    val matched = divisions.find { it.name == divName }
+                                    onProfileChange(
+                                        profile.copy(
+                                            institutionDivision = divName,
+                                            institutionDistrict = "",
+                                            institutionName = "",
+                                            schoolId = ""
+                                        )
+                                    )
+                                    val matched = divisions.find { it.name == divName || it.nameBn == divName }
                                     if (matched != null) {
                                         viewModel.loadDistricts(matched.id)
                                     }
@@ -1124,7 +1254,18 @@ private fun Step3GuardianInfo(
                             DropdownMenuItem(
                                 text = { Text(distName) },
                                 onClick = {
-                                    onProfileChange(profile.copy(institutionDistrict = distName))
+                                    onProfileChange(
+                                        profile.copy(
+                                            institutionDistrict = distName,
+                                            institutionName = "",
+                                            schoolId = ""
+                                        )
+                                    )
+                                    val matchedDiv = divisions.find { it.name == profile.institutionDivision || it.nameBn == profile.institutionDivision }
+                                    val matchedDist = districts.find { it.name == distName || it.nameBn == distName }
+                                    if (matchedDiv != null && matchedDist != null) {
+                                        viewModel.searchSchools(matchedDist.id, matchedDiv.id, "")
+                                    }
                                     expandedDistrict = false
                                 }
                             )
@@ -1134,15 +1275,18 @@ private fun Step3GuardianInfo(
             }
         }
 
-        // Institution / College Name with Search & Update School Mutation
+        // Institution / College Name with Real Search & Update School Mutation
         item {
             Column {
-                Text(
-                    text = "প্রতিষ্ঠানের নাম (স্কুল/কলেজ)",
-                    fontSize = 14.sp,
-                    fontWeight = FontWeight.Bold,
-                    color = Color(0xFF1E293B)
-                )
+                Row {
+                    Text(
+                        text = "প্রতিষ্ঠানের নাম (স্কুল/কলেজ)",
+                        fontSize = 14.sp,
+                        fontWeight = FontWeight.Bold,
+                        color = Color(0xFF1E293B)
+                    )
+                    Text(text = " *", color = Color.Red, fontWeight = FontWeight.Bold)
+                }
 
                 Spacer(modifier = Modifier.height(6.dp))
 
@@ -1152,17 +1296,17 @@ private fun Step3GuardianInfo(
                         onProfileChange(profile.copy(institutionName = it))
                     },
                     singleLine = true,
-                    placeholder = { Text("স্কুল বা কলেজের নাম লিখুন") },
+                    placeholder = { Text("স্কুল বা কলেজের নাম লিখুন বা খুঁজুন") },
                     shape = RoundedCornerShape(14.dp),
                     trailingIcon = {
                         IconButton(
                             onClick = {
-                                // Calls live UpdateUserSchool mutation
-                                viewModel.updateSchool(
-                                    schoolId = "school_101",
-                                    userType = "student",
-                                    onSuccess = {}
-                                )
+                                val matchedDiv = divisions.find { it.name == profile.institutionDivision || it.nameBn == profile.institutionDivision }
+                                val matchedDist = districts.find { it.name == profile.institutionDistrict || it.nameBn == profile.institutionDistrict }
+                                if (matchedDiv != null && matchedDist != null) {
+                                    viewModel.searchSchools(matchedDist.id, matchedDiv.id, schoolSearchQuery)
+                                }
+                                showSchoolDialog = true
                             }
                         ) {
                             Icon(

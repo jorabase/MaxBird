@@ -314,3 +314,21 @@ sealed interface CourseContentUiState<out T> {
     data class Success<T>(val data: T) : CourseContentUiState<T>
     data class Error(val message: String, val cachedData: Any? = null) : CourseContentUiState<Nothing>
 }
+
+data class BatchOption(
+    val year: Int,
+    val label: String
+)
+
+data class ShikhoClassItem(
+    val serial: Int,
+    val code: String,
+    val nameEn: String,
+    val nameBn: String,
+    val isGroupRequired: Boolean = false,
+    val hasBatchSelection: Boolean = true,
+    val parentName: String? = null,
+    val parentNameBn: String? = null,
+    val isActive: Boolean = true
+)
+

@@ -129,9 +129,11 @@ data class UserProfile(
     val institutionDivision: String = "",
     val institutionDistrict: String = "",
     val institutionName: String = "",
+    val schoolId: String = "",
     val educationMedium: String = "বাংলা মাধ্যম",
     val guardianName: String = "",
     val guardianPhone: String = "",
     val otherTutoringSources: List<String> = emptyList(),
+    val futurePlan: List<String> = emptyList(),
     val isLoggedIn: Boolean = false
 )

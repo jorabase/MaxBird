@@ -36,6 +36,32 @@ class SyllabusViewModel : ViewModel() {
     private val _phasesState = MutableStateFlow<List<GqlProgramPhase>>(emptyList())
     val phasesState: StateFlow<List<GqlProgramPhase>> = _phasesState.asStateFlow()
 
+    private val _classesState = MutableStateFlow<List<com.example.common.network.ShikhoClassItem>>(emptyList())
+    val classesState: StateFlow<List<com.example.common.network.ShikhoClassItem>> = _classesState.asStateFlow()
+
+    private val _batchOptionsState = MutableStateFlow<List<com.example.common.network.BatchOption>>(emptyList())
+    val batchOptionsState: StateFlow<List<com.example.common.network.BatchOption>> = _batchOptionsState.asStateFlow()
+
+    init {
+        loadClassList()
+    }
+
+    fun loadClassList() {
+        viewModelScope.launch {
+            val res = ShikhoServices.fetchClassList()
+            val list = res.getOrDefault(emptyList())
+            _classesState.value = list
+        }
+    }
+
+    fun loadBatchOptions(classCode: String) {
+        viewModelScope.launch {
+            val res = ShikhoServices.fetchBatchOptions(classCode)
+            val list = res.getOrDefault(emptyList())
+            _batchOptionsState.value = list
+        }
+    }
+
     fun syncSyllabus(
         selectedClass: String,
         selectedYear: String,
@@ -47,7 +73,8 @@ class SyllabusViewModel : ViewModel() {
 
             // Map class code for Shikho query
             val classCode = when {
-                selectedClass.contains("এইচএসসি") || selectedClass.contains("HSC") -> "C11"
+                selectedClass.contains("১১") || selectedClass.contains("এইচএসসি") || selectedClass.contains("HSC") -> "C11"
+                selectedClass.contains("১২") -> "C12"
                 selectedClass.contains("১০") -> "C10"
                 selectedClass.contains("৯") -> "C09"
                 selectedClass.contains("৮") -> "C08"
@@ -73,19 +100,33 @@ class SyllabusViewModel : ViewModel() {
             }
 
             val rawDigits = selectedYear.filter { it.isDigit() }
-            val batchYear = if (rawDigits.isNotEmpty()) rawDigits else "2028"
+            val batchYear = if (rawDigits.isNotEmpty()) rawDigits else "2027"
             val batchId = if (classCode == "C11") "HSC $batchYear" else "$selectedClass $batchYear"
 
             val targetProgramId = when {
-                classCode == "C11" && batchYear == "2028" && groupCode == "HUM" -> "69f884bb8338867433c1be8e" // দুরন্ত HSC '28 মানবিক
                 classCode == "C11" && batchYear == "2027" && groupCode == "HUM" -> "6864d3a806800acba2e27099" // HSC '27 মানবিক - ২য় বর্ষ প্রস্তুতি
+                classCode == "C11" && batchYear == "2028" && groupCode == "HUM" -> "69f884bb8338867433c1be8e" // দুরন্ত HSC '28 মানবিক
                 classCode == "C05" -> "c05_prog_1"
-                else -> "69f884bb8338867433c1be8e"
+                else -> "6864d3a806800acba2e27099"
             }
 
+            // ধাপ ১: রিয়েল সার্ভার মিউটেশন ChangeSyllabus এক্সিকিউট করা
+            // এই মিউটেশনের মাধ্যমে সার্ভার থেকে নতুন JWT access_token, id_token ও refresh_token পাওয়া যায়
+            ShikhoServices.changeSyllabusMutation(
+                studyGroup = if (groupCode == "GEN") null else groupName,
+                userClass = classCode
+            )
+
+            // ধাপ ২: রিয়েল সার্ভার মিউটেশন UpdateExamYear এক্সিকিউট করা
+            ShikhoServices.updateExamYearMutation(
+                passingYear = batchYear,
+                type = "student"
+            )
+
+            // ধাপ ৩: সার্ভার থেকে রিয়েল ইউজার প্রোফাইল রিফ্রেশ (GetProfile)
+            UserSessionManager.refreshUserProfileFromServer()
+
             // ধাপ ৪: ইভেন্ট-ড্রিভেন টেলিমেট্রি ও অ্যানালিটিক্স সিঙ্ক
-            // 1. Facebook SDK ইভেন্ট ডিসপ্যাচ: Syllabus Change
-            // 2. CleverTap প্রোফাইল সিঙ্ক: app_session_start
             com.example.common.network.AnalyticsTracker.trackSyllabusChange(
                 oldClass = UserSessionManager.currentUserProfile.studentClass,
                 newClass = classCode,
@@ -95,14 +136,13 @@ class SyllabusViewModel : ViewModel() {
                 selectedProgramId = targetProgramId
             )
 
-            // ধাপ ৬: পুশ নোটিফিকেশন টপিক পুনর্নির্ধারণ (FCM Topic Subscription)
             com.example.common.network.AnalyticsTracker.trackFcmTopicSubscription(
                 newClass = classCode,
                 examYear = batchYear,
                 group = groupName
             )
 
-            // ধাপ ৫: নতুন সিলেবাস অনুযায়ী কোর্স ক্যাটালগ পুনর্নির্মাণ (Catalog Re-querying)
+            // ধাপ ৫: নতুন সিলেবাস অনুযায়ী কোর্স ক্যাটালগ পুনর্নির্মাণ (GetAcademicProgram)
             val filterParams = com.example.common.network.AcademicProgramFilterParams(
                 batchId = batchId,
                 className = classCode,
@@ -119,10 +159,11 @@ class SyllabusViewModel : ViewModel() {
             val phases = phasesResult.getOrDefault(emptyList())
             _phasesState.value = phases
 
-            // Update user profile in persistent session
-            val updatedProfile = UserSessionManager.currentUserProfile.copy(
+            // Update user profile in persistent session with newly chosen class/batch/group
+            val currentProfile = UserSessionManager.currentUserProfile
+            val updatedProfile = currentProfile.copy(
                 studentClass = selectedClass,
-                examBatch = "$selectedClass $selectedYear",
+                examBatch = if (selectedYear.isNotBlank()) selectedYear else batchYear,
                 group = selectedGroup
             )
             UserSessionManager.saveProfile(updatedProfile)
@@ -132,7 +173,7 @@ class SyllabusViewModel : ViewModel() {
             CourseViewModel.shared.loadAcademicPrograms(filterParams)
 
             _syncState.value = SyllabusSyncUiState.Success(
-                message = "সিলেবাস সফলভাবে হালনাগাদ করা হয়েছে",
+                message = "সিলেবাস সফলভাবে সার্ভারের সাথে হালনাগাদ করা হয়েছে",
                 programs = programs,
                 phases = phases
             )
@@ -168,6 +209,9 @@ class ProfileEditViewModel : ViewModel() {
     private val _schools = MutableStateFlow<List<SchoolItem>>(emptyList())
     val schools: StateFlow<List<SchoolItem>> = _schools.asStateFlow()
 
+    private val _isSearchingSchools = MutableStateFlow(false)
+    val isSearchingSchools: StateFlow<Boolean> = _isSearchingSchools.asStateFlow()
+
     init {
         loadDivisions()
     }
@@ -184,22 +228,35 @@ class ProfileEditViewModel : ViewModel() {
             val result = ShikhoServices.getDistricts(divisionId)
             val distList = result.getOrDefault(emptyList())
             _districts.value = distList
-
-            // Provide typical colleges/schools based on selected division/district
-            _schools.value = listOf(
-                SchoolItem("sch_01", "GOJAPARA JUNIOR SCHOOL"),
-                SchoolItem("sch_02", "DHAKA RESIDENTIAL MODEL COLLEGE"),
-                SchoolItem("sch_03", "NOTRE DAME COLLEGE, DHAKA"),
-                SchoolItem("sch_04", "CHITTAGONG COLLEGE"),
-                SchoolItem("sch_05", "RAJSHAHI COLLEGE"),
-                SchoolItem("sch_06", "GOVT. BROJOMOHUN COLLEGE, BARISAL")
-            )
+            _schools.value = emptyList()
         }
     }
 
-    fun onSchoolSelected(schoolId: String) {
+    fun searchSchools(districtId: String, divisionId: String, query: String = "") {
+        viewModelScope.launch {
+            _isSearchingSchools.value = true
+            try {
+                val result = ShikhoServices.searchSchoolV1(
+                    district = districtId,
+                    division = divisionId,
+                    limit = 100,
+                    offset = 0,
+                    name = query
+                )
+                _schools.value = result.getOrDefault(emptyList())
+            } finally {
+                _isSearchingSchools.value = false
+            }
+        }
+    }
+
+    fun onSchoolSelected(schoolId: String, schoolName: String = "") {
         viewModelScope.launch {
             ShikhoServices.updateUserSchool(schoolId, "student")
+            val curr = UserSessionManager.currentUserProfile
+            if (schoolName.isNotBlank()) {
+                UserSessionManager.saveProfile(curr.copy(institutionName = schoolName, schoolId = schoolId))
+            }
         }
     }
 
@@ -229,6 +286,7 @@ class ProfileEditViewModel : ViewModel() {
         )
         saveCompleteProfile(
             payload = payload,
+            schoolId = profile.schoolId,
             schoolName = profile.institutionName,
             divisionName = profile.institutionDivision,
             districtName = profile.institutionDistrict,
@@ -238,6 +296,7 @@ class ProfileEditViewModel : ViewModel() {
 
     fun saveCompleteProfile(
         payload: ProfileUpdatePayload,
+        schoolId: String? = null,
         schoolName: String?,
         divisionName: String?,
         districtName: String?,
@@ -247,10 +306,15 @@ class ProfileEditViewModel : ViewModel() {
             _uiState.value = ProfileEditUiState.Saving
             _isSaving.value = true
             try {
-                // 1. Call GraphQL mutation UpdateProfileWithoutUseName
-                val result = ShikhoServices.updateProfileWithoutUserName(payload)
+                // 1. Update School if selected
+                if (!schoolId.isNullOrBlank()) {
+                    ShikhoServices.updateUserSchool(schoolId, "student")
+                }
 
-                // 2. Persist to UserSessionManager persistent storage
+                // 2. Call GraphQL mutation UpdateProfileWithoutUseName
+                ShikhoServices.updateProfileWithoutUserName(payload)
+
+                // 3. Persist updated values to local session
                 val curr = UserSessionManager.currentUserProfile
                 val updated = curr.copy(
                     birthDate = payload.dob ?: curr.birthDate,
@@ -265,13 +329,19 @@ class ProfileEditViewModel : ViewModel() {
                     institutionDivision = divisionName ?: curr.institutionDivision,
                     institutionDistrict = districtName ?: curr.institutionDistrict,
                     institutionName = schoolName ?: curr.institutionName,
+                    schoolId = schoolId ?: curr.schoolId,
                     guardianName = payload.guardianName ?: curr.guardianName,
                     guardianPhone = payload.guardianMobile ?: curr.guardianPhone
                 )
                 UserSessionManager.saveProfile(updated)
 
+                // 4. Re-fetch clean verified profile from server
+                UserSessionManager.refreshUserProfileFromServer()
+
                 _uiState.value = ProfileEditUiState.Success()
                 onSuccess()
+            } catch (e: Exception) {
+                _uiState.value = ProfileEditUiState.Error(e.message ?: "সংরক্ষণ ব্যর্থ হয়েছে")
             } finally {
                 _isSaving.value = false
             }

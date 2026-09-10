@@ -11,6 +11,13 @@ import com.example.common.model.UserProfile
 import org.json.JSONArray
 import org.json.JSONObject
 
+sealed interface ProfileSyncState {
+    data object Idle : ProfileSyncState
+    data class Loading(val step: String) : ProfileSyncState
+    data class Success(val message: String = "প্রোফাইল তথ্য সফলভাবে সিঙ্ক হয়েছে") : ProfileSyncState
+    data class Error(val message: String, val details: String? = null) : ProfileSyncState
+}
+
 /**
  * Manages persistent user session storage using Android SharedPreferences.
  * Keeps user authentication token and profile persistently stored across app closes and device reboots.
@@ -32,18 +39,19 @@ object UserSessionManager {
 
     /**
      * Active user profile state. Dynamically updated upon login, profile update, or session restore.
+     * No fake or demo data: only real data loaded from API responses.
      */
     var currentUserProfile by mutableStateOf(
         UserProfile(
             id = "",
-            name = "শিক্ষার্থী",
+            name = "",
             phone = "",
             birthDate = "",
             gender = "",
             avatarUrl = "",
-            studentClass = "এইচএসসি",
-            group = "মানবিক বিভাগ",
-            examBatch = "এইচএসসি ২০২৭",
+            studentClass = "",
+            group = "",
+            examBatch = "",
             classShift = "",
             sscBoard = "",
             sscRoll = "",
@@ -60,6 +68,12 @@ object UserSessionManager {
             isLoggedIn = false
         )
     )
+
+    /**
+     * Profile synchronization status with server.
+     * Informs the UI whether real data loaded, is loading, or encountered an error.
+     */
+    var profileSyncState by mutableStateOf<ProfileSyncState>(ProfileSyncState.Idle)
 
     /**
      * Enrolled courses state for the active user. Empty by default until loaded or enrolled.
@@ -136,6 +150,28 @@ object UserSessionManager {
     }
 
     /**
+     * Updates authentication tokens persistently (e.g. after ChangeSyllabus mutation).
+     */
+    fun updateTokens(accessToken: String, refreshToken: String? = null, idToken: String? = null) {
+        try {
+            val prefs = getPrefs() ?: return
+            val editor = prefs.edit().putString(KEY_ACCESS_TOKEN, accessToken)
+            if (!refreshToken.isNullOrBlank()) {
+                editor.putString(KEY_REFRESH_TOKEN, refreshToken)
+            }
+            if (!idToken.isNullOrBlank()) {
+                editor.putString(KEY_ID_TOKEN, idToken)
+            }
+            editor.apply()
+            InMemoryAuthRepository.shared.saveTokens(accessToken, refreshToken, idToken)
+            Log.d(TAG, "Auth tokens updated persistently.")
+        } catch (e: Exception) {
+            Log.e(TAG, "Failed to update tokens: ${e.localizedMessage}")
+        }
+    }
+
+
+    /**
      * Restores saved session from persistent storage if the user was previously logged in.
      */
     fun restoreSessionIfPresent(): Boolean {
@@ -192,10 +228,54 @@ object UserSessionManager {
             currentUserProfile = currentUserProfile.copy(
                 isLoggedIn = false
             )
+            profileSyncState = ProfileSyncState.Idle
 
             Log.d(TAG, "User session cleared. Logged out successfully.")
         } catch (e: Exception) {
             Log.e(TAG, "Error during logout: ${e.localizedMessage}", e)
+        }
+    }
+
+    /**
+     * Re-queries the Shikho server for the student's real profile data.
+     * Updates profileSyncState so the UI knows if it's loading, succeeded, or failed and why.
+     */
+    suspend fun refreshUserProfileFromServer(forcedAccessToken: String? = null): Boolean {
+        val token = forcedAccessToken ?: getSavedAccessToken() ?: InMemoryAuthRepository.shared.accessToken
+        if (token.isNullOrBlank()) {
+            profileSyncState = ProfileSyncState.Error(
+                message = "লগইন টোকেন পাওয়া যায়নি",
+                details = "অনুগ্রহ করে ফোন নম্বর দিয়ে পুনরায় লগইন করুন।"
+            )
+            return false
+        }
+
+        profileSyncState = ProfileSyncState.Loading("সার্ভার থেকে রিয়েল প্রোফাইল ডেটা আনা হচ্ছে...")
+        return try {
+            val authService = AuthService()
+            val updated = authService.fetchUserProfile(
+                accessToken = token,
+                currentProfile = currentUserProfile,
+                userId = currentUserProfile.id
+            )
+
+            if (updated.name.isNotBlank() || updated.avatarUrl.isNotBlank() || updated.institutionName.isNotBlank()) {
+                saveProfile(updated.copy(isLoggedIn = true))
+                profileSyncState = ProfileSyncState.Success("রিয়েল প্রোফাইল তথ্য সফলভাবে আপডেট হয়েছে")
+                true
+            } else {
+                profileSyncState = ProfileSyncState.Error(
+                    message = "সার্ভার থেকে সম্পূর্ণ প্রোফাইল তথ্য পাওয়া যায়নি",
+                    details = "GraphQL ও REST সার্ভার থেকে শিক্ষার্থী ডেটা পাওয়া যায়নি।"
+                )
+                false
+            }
+        } catch (e: Exception) {
+            profileSyncState = ProfileSyncState.Error(
+                message = "প্রোফাইল লোড হতে ব্যর্থ হয়েছে",
+                details = e.localizedMessage ?: "নেটওয়ার্ক বা সার্ভার ত্রুটি"
+            )
+            false
         }
     }
 
@@ -232,6 +312,7 @@ object UserSessionManager {
         json.put("institutionDivision", profile.institutionDivision)
         json.put("institutionDistrict", profile.institutionDistrict)
         json.put("institutionName", profile.institutionName)
+        json.put("schoolId", profile.schoolId)
         json.put("educationMedium", profile.educationMedium)
         json.put("guardianName", profile.guardianName)
         json.put("guardianPhone", profile.guardianPhone)
@@ -240,6 +321,10 @@ object UserSessionManager {
         val tutoringArray = JSONArray()
         profile.otherTutoringSources.forEach { tutoringArray.put(it) }
         json.put("otherTutoringSources", tutoringArray)
+
+        val futurePlanArray = JSONArray()
+        profile.futurePlan.forEach { futurePlanArray.put(it) }
+        json.put("futurePlan", futurePlanArray)
 
         return json.toString()
     }
@@ -255,14 +340,22 @@ object UserSessionManager {
                 }
             }
 
+            val futurePlanList = mutableListOf<String>()
+            val futurePlanArray = json.optJSONArray("futurePlan")
+            if (futurePlanArray != null) {
+                for (i in 0 until futurePlanArray.length()) {
+                    futurePlanList.add(futurePlanArray.optString(i))
+                }
+            }
+
             UserProfile(
                 id = json.optString("id", ""),
-                name = json.optString("name", "Student"),
+                name = json.optString("name", ""),
                 phone = json.optString("phone", ""),
                 birthDate = json.optString("birthDate", ""),
                 gender = json.optString("gender", ""),
                 avatarUrl = json.optString("avatarUrl", ""),
-                studentClass = json.optString("studentClass", "এইচএসসি"),
+                studentClass = json.optString("studentClass", ""),
                 group = json.optString("group", ""),
                 examBatch = json.optString("examBatch", ""),
                 classShift = json.optString("classShift", ""),
@@ -274,10 +367,12 @@ object UserSessionManager {
                 institutionDivision = json.optString("institutionDivision", ""),
                 institutionDistrict = json.optString("institutionDistrict", ""),
                 institutionName = json.optString("institutionName", ""),
+                schoolId = json.optString("schoolId", ""),
                 educationMedium = json.optString("educationMedium", ""),
                 guardianName = json.optString("guardianName", ""),
                 guardianPhone = json.optString("guardianPhone", ""),
                 otherTutoringSources = tutoringList,
+                futurePlan = futurePlanList,
                 isLoggedIn = json.optBoolean("isLoggedIn", true)
             )
         } catch (e: Exception) {

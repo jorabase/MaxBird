@@ -79,6 +79,7 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import coil.compose.AsyncImage
 import com.example.common.ui.components.UserAvatarView
+import com.example.common.ui.components.ProfileSyncStatusCard
 import com.example.common.model.UserProfile
 import com.example.common.network.UserSessionManager
 
@@ -175,6 +176,10 @@ fun ProfileScreen(
                     )
                 }
             }
+        }
+
+        item {
+            ProfileSyncStatusCard()
         }
 
         item {
@@ -277,9 +282,12 @@ private fun ProfileHeader(
                 Spacer(modifier = Modifier.width(16.dp))
 
                 Column(modifier = Modifier.weight(1f)) {
+                    val displayName = userProfile.name.ifBlank {
+                        if (userProfile.phone.isNotBlank()) "শিক্ষার্থী (${userProfile.phone})" else "শিক্ষার্থী"
+                    }
                     Row(verticalAlignment = Alignment.CenterVertically) {
                         Text(
-                            text = userProfile.name,
+                            text = displayName,
                             style = MaterialTheme.typography.titleLarge,
                             fontWeight = FontWeight.ExtraBold,
                             color = MaterialTheme.colorScheme.onSurface,
